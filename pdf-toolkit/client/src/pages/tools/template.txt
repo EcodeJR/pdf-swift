@@ -1,0 +1,1 @@
+// Simplified tool page template - Following same pattern as PdfToWord
