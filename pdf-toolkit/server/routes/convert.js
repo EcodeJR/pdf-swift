@@ -14,7 +14,8 @@ const {
   mergePdf,
   splitPdf,
   editPdf,
-  downloadFile
+  downloadFile,
+  downloadCloudFile
 } = require('../controllers/conversionController');
 
 // Apply optional auth and rate limiting to all conversion routes
@@ -34,7 +35,8 @@ router.post('/merge-pdf', localUpload.array('files', 10), mergePdf);
 router.post('/split-pdf', localUpload.single('file'), splitPdf);
 router.post('/edit-pdf', localUpload.single('file'), editPdf);
 
-// Download route
+// Download routes
 router.get('/download/:filename', downloadFile);
+router.get('/download/cloud/:fileId', downloadCloudFile);
 
 module.exports = router;

@@ -1,15 +1,150 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { toast } from 'react-toastify';
+import { useAuth } from '../../context/AuthContext';
+import FileUploader from '../../components/FileUploader';
+import VideoAdModal from '../../components/VideoAdModal';
+import { conversionAPI } from '../../services/api';
+import { FiDownload, FiLoader, FiFileText } from 'react-icons/fi';
 
 const ExcelToPdf = () => {
+  const { user } = useAuth();
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [convertedFile, setConvertedFile] = useState(null);
+  const [showAdModal, setShowAdModal] = useState(false);
+
+  const handleConvert = async () => {
+    if (!selectedFile) {
+      toast.error('Please select an Excel file');
+      return;
+    }
+
+    setLoading(true);
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('storageType', 'temporary');
+
+    try {
+      const data = await conversionAPI.convertFile('excel-to-pdf', formData);
+      setConvertedFile(data);
+      
+      if (!user || !user.isPremium) {
+        setShowAdModal(true);
+      } else {
+        toast.success('Conversion complete!');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Conversion failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (convertedFile && convertedFile.downloadUrl) {
+      window.location.href = convertedFile.downloadUrl;
+      toast.success('Download started!');
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center p-8 bg-white rounded-lg shadow-lg max-w-md">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Excel to PDF</h1>
-        <p className="text-gray-600 mb-4">Coming soon! This feature is under development.</p>
-        <a href="/" className="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
-          Back to Home
-        </a>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Excel to PDF Converter</h1>
+          <p className="text-lg text-gray-600">Convert Excel spreadsheets (.xls, .xlsx) to PDF format</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          <FileUploader
+            accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            onFileSelect={(files) => setSelectedFile(files[0])}
+            maxFiles={1}
+            maxSize={user?.isPremium ? 50 * 1024 * 1024 : 10 * 1024 * 1024}
+          />
+
+          {selectedFile && (
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <FiFileText className="text-blue-600" size={24} />
+                  <div>
+                    <p className="font-medium text-gray-900">{selectedFile.name}</p>
+                    <p className="text-sm text-gray-600">
+                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleConvert}
+                  disabled={loading}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center space-x-2"
+                >
+                  {loading ? (
+                    <>
+                      <FiLoader className="animate-spin" />
+                      <span>Converting...</span>
+                    </>
+                  ) : (
+                    <span>Convert to PDF</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {convertedFile && (
+            <div className="mt-6 p-6 bg-green-50 rounded-lg border-2 border-green-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-green-900 mb-2">
+                    Conversion Successful!
+                  </h3>
+                  <p className="text-sm text-green-700">
+                    Your PDF is ready to download
+                  </p>
+                </div>
+                <button
+                  onClick={handleDownload}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center space-x-2"
+                >
+                  <FiDownload />
+                  <span>Download PDF</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Features */}
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="font-semibold text-gray-900 mb-2">Preserve Layout</h3>
+            <p className="text-sm text-gray-600">
+              Maintains spreadsheet formatting, formulas, and cell styling
+            </p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="font-semibold text-gray-900 mb-2">Multiple Sheets</h3>
+            <p className="text-sm text-gray-600">
+              Converts all sheets in your workbook to a single PDF
+            </p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="font-semibold text-gray-900 mb-2">Secure</h3>
+            <p className="text-sm text-gray-600">
+              Files are automatically deleted after 1 hour for your privacy
+            </p>
+          </div>
+        </div>
       </div>
+
+      {showAdModal && (
+        <VideoAdModal
+          onComplete={handleDownload}
+          onClose={() => setShowAdModal(false)}
+        />
+      )}
     </div>
   );
 };

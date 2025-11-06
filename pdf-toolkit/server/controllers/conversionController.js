@@ -1,4 +1,5 @@
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const { PDFDocument } = require('pdf-lib');
 const pdfParse = require('pdf-parse');
@@ -6,7 +7,14 @@ const { Document, Paragraph, TextRun, Packer } = require('docx');
 const xlsx = require('xlsx');
 const sharp = require('sharp');
 const PDFDocument2 = require('pdfkit');
+const { convert } = require('pdf-poppler');
+const libre = require('libreoffice-convert');
+const { promisify } = require('util');
+const libreConvert = promisify(libre.convert);
 const Conversion = require('../models/Conversion');
+const { lockFileWithTimeout, unlockFile } = require('../utils/fileManager');
+const { streamFromGridFS } = require('../utils/gridfsHelper');
+const { handleFileStorage, cleanupFile, validateStorageRequest, getStorageMetadata } = require('../utils/conversionHelper');
 
 // Helper function to track conversion
 const trackConversion = async (userId, ipAddress, conversionType, originalFileName, outputFileName, fileSize, storageType, gridFsFileId = null) => {
@@ -452,10 +460,18 @@ exports.downloadFile = async (req, res) => {
       return res.status(404).json({ message: 'File not found or expired' });
     }
 
+    // Lock file to prevent cleanup during download (auto-unlocks after 5 minutes)
+    lockFileWithTimeout(fileName, 5 * 60 * 1000);
+
     res.download(filePath, fileName, async (err) => {
+      // Unlock file after download completes (success or error)
+      unlockFile(fileName);
+      
       if (err) {
         console.error('Download error:', err);
-        res.status(500).json({ message: 'Error downloading file' });
+        if (!res.headersSent) {
+          res.status(500).json({ message: 'Error downloading file' });
+        }
       }
     });
   } catch (error) {
@@ -464,27 +480,367 @@ exports.downloadFile = async (req, res) => {
   }
 };
 
-// Placeholder for other converters
+// PDF to JPG Converter
 exports.pdfToJpg = async (req, res) => {
-  res.status(501).json({ 
-    message: 'PDF to JPG conversion coming soon! This feature requires additional PDF rendering capabilities.'
-  });
+  const startTime = Date.now();
+  
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const pdfPath = req.file.path;
+    const outputDir = path.join(__dirname, '../uploads');
+    const baseFileName = path.basename(req.file.filename, '.pdf');
+    
+    // PDF to image conversion options
+    const opts = {
+      format: 'jpeg',
+      out_dir: outputDir,
+      out_prefix: baseFileName,
+      page: null // Convert all pages
+    };
+
+    // Convert PDF to images
+    await convert(pdfPath, opts);
+
+    // Find generated image files
+    const files = await fs.readdir(outputDir);
+    const imageFiles = files.filter(f => f.startsWith(baseFileName) && f.endsWith('.jpg'));
+
+    if (imageFiles.length === 0) {
+      throw new Error('No images generated from PDF');
+    }
+
+    // Use the first image as the primary output
+    const outputFileName = imageFiles[0];
+    const outputPath = path.join(outputDir, outputFileName);
+    const stats = await fs.stat(outputPath);
+
+    // Track conversion
+    const ip = req.ip || req.connection.remoteAddress;
+    await trackConversion(
+      req.user ? req.user._id : null,
+      ip,
+      'pdf-to-jpg',
+      req.file.originalname,
+      outputFileName,
+      stats.size,
+      req.body.storageType || 'temporary'
+    );
+
+    // Clean up original PDF
+    await fs.unlink(pdfPath);
+
+    const conversionTime = Date.now() - startTime;
+
+    res.json({
+      message: `PDF converted to ${imageFiles.length} JPG image(s) successfully`,
+      downloadUrl: `/api/convert/download/${outputFileName}`,
+      fileName: outputFileName,
+      fileSize: stats.size,
+      pageCount: imageFiles.length,
+      conversionTime,
+      allImages: imageFiles.map(f => `/api/convert/download/${f}`)
+    });
+  } catch (error) {
+    console.error('PDF to JPG error:', error);
+    res.status(500).json({ 
+      message: 'Error converting PDF to JPG. Please ensure the PDF is valid.', 
+      error: error.message 
+    });
+  }
 };
 
+// Word to PDF Converter
 exports.wordToPdf = async (req, res) => {
-  res.status(501).json({ 
-    message: 'Word to PDF conversion coming soon! This feature requires additional document processing capabilities.'
-  });
+  const startTime = Date.now();
+  
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    // Read the DOCX file
+    const docxBuffer = await fs.readFile(req.file.path);
+    
+    // Convert to PDF using LibreOffice
+    const pdfBuffer = await libreConvert(docxBuffer, '.pdf', undefined);
+    
+    const outputFileName = req.file.filename.replace(/\.(docx|doc)$/i, '.pdf');
+    const outputPath = path.join(__dirname, '../uploads', outputFileName);
+    
+    await fs.writeFile(outputPath, pdfBuffer);
+
+    // Track conversion
+    const ip = req.ip || req.connection.remoteAddress;
+    await trackConversion(
+      req.user ? req.user._id : null,
+      ip,
+      'word-to-pdf',
+      req.file.originalname,
+      outputFileName,
+      pdfBuffer.length,
+      req.body.storageType || 'temporary'
+    );
+
+    // Clean up original file
+    await fs.unlink(req.file.path);
+
+    const conversionTime = Date.now() - startTime;
+
+    res.json({
+      message: 'Word document converted to PDF successfully',
+      downloadUrl: `/api/convert/download/${outputFileName}`,
+      fileName: outputFileName,
+      fileSize: pdfBuffer.length,
+      conversionTime
+    });
+  } catch (error) {
+    console.error('Word to PDF error:', error);
+    res.status(500).json({ 
+      message: 'Error converting Word to PDF. Please ensure LibreOffice is installed and the file is valid.', 
+      error: error.message 
+    });
+  }
 };
 
+// Excel to PDF Converter
 exports.excelToPdf = async (req, res) => {
-  res.status(501).json({ 
-    message: 'Excel to PDF conversion coming soon! This feature requires additional spreadsheet processing capabilities.'
-  });
+  const startTime = Date.now();
+  
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    // Read the XLSX file
+    const xlsxBuffer = await fs.readFile(req.file.path);
+    
+    // Convert to PDF using LibreOffice
+    const pdfBuffer = await libreConvert(xlsxBuffer, '.pdf', undefined);
+    
+    const outputFileName = req.file.filename.replace(/\.(xlsx|xls)$/i, '.pdf');
+    const outputPath = path.join(__dirname, '../uploads', outputFileName);
+    
+    await fs.writeFile(outputPath, pdfBuffer);
+
+    // Track conversion
+    const ip = req.ip || req.connection.remoteAddress;
+    await trackConversion(
+      req.user ? req.user._id : null,
+      ip,
+      'excel-to-pdf',
+      req.file.originalname,
+      outputFileName,
+      pdfBuffer.length,
+      req.body.storageType || 'temporary'
+    );
+
+    // Clean up original file
+    await fs.unlink(req.file.path);
+
+    const conversionTime = Date.now() - startTime;
+
+    res.json({
+      message: 'Excel spreadsheet converted to PDF successfully',
+      downloadUrl: `/api/convert/download/${outputFileName}`,
+      fileName: outputFileName,
+      fileSize: pdfBuffer.length,
+      conversionTime
+    });
+  } catch (error) {
+    console.error('Excel to PDF error:', error);
+    res.status(500).json({ 
+      message: 'Error converting Excel to PDF. Please ensure LibreOffice is installed and the file is valid.', 
+      error: error.message 
+    });
+  }
 };
 
+// PDF Editor - Add text, images, and annotations
 exports.editPdf = async (req, res) => {
-  res.status(501).json({ 
-    message: 'PDF editing coming soon! This feature will allow you to add text and annotations.'
-  });
+  const startTime = Date.now();
+  
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No PDF file uploaded' });
+    }
+
+    // Get editing instructions from request body
+    const { 
+      texts = [],        // Array of {text, x, y, page, size, color}
+      images = [],       // Array of {imageUrl, x, y, page, width, height}
+      annotations = [],  // Array of {type, x, y, page, width, height, color}
+      watermark = null,  // {text, opacity, rotation}
+      rotate = null      // {page, degrees}
+    } = req.body;
+
+    // Load the PDF
+    const pdfBytes = await fs.readFile(req.file.path);
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pages = pdfDoc.getPages();
+
+    // Add text annotations
+    for (const textItem of texts) {
+      const page = pages[textItem.page || 0];
+      const fontSize = textItem.size || 12;
+      const color = textItem.color || { r: 0, g: 0, b: 0 };
+      
+      page.drawText(textItem.text, {
+        x: textItem.x,
+        y: textItem.y,
+        size: fontSize,
+        color: color
+      });
+    }
+
+    // Add image annotations
+    for (const imgItem of images) {
+      const page = pages[imgItem.page || 0];
+      
+      // If image is base64 or URL, embed it
+      if (imgItem.imageData) {
+        let image;
+        if (imgItem.imageData.startsWith('data:image/png')) {
+          const base64 = imgItem.imageData.split(',')[1];
+          const imageBytes = Buffer.from(base64, 'base64');
+          image = await pdfDoc.embedPng(imageBytes);
+        } else if (imgItem.imageData.startsWith('data:image/jpeg') || imgItem.imageData.startsWith('data:image/jpg')) {
+          const base64 = imgItem.imageData.split(',')[1];
+          const imageBytes = Buffer.from(base64, 'base64');
+          image = await pdfDoc.embedJpg(imageBytes);
+        }
+        
+        if (image) {
+          page.drawImage(image, {
+            x: imgItem.x,
+            y: imgItem.y,
+            width: imgItem.width || 100,
+            height: imgItem.height || 100
+          });
+        }
+      }
+    }
+
+    // Add shape annotations (rectangles, highlights)
+    for (const annotation of annotations) {
+      const page = pages[annotation.page || 0];
+      const color = annotation.color || { r: 1, g: 1, b: 0 };
+      const opacity = annotation.opacity || 0.3;
+      
+      if (annotation.type === 'rectangle' || annotation.type === 'highlight') {
+        page.drawRectangle({
+          x: annotation.x,
+          y: annotation.y,
+          width: annotation.width,
+          height: annotation.height,
+          color: color,
+          opacity: opacity,
+          borderColor: annotation.borderColor || color,
+          borderWidth: annotation.borderWidth || 1
+        });
+      } else if (annotation.type === 'line') {
+        page.drawLine({
+          start: { x: annotation.x, y: annotation.y },
+          end: { x: annotation.x2, y: annotation.y2 },
+          thickness: annotation.thickness || 2,
+          color: color
+        });
+      }
+    }
+
+    // Add watermark to all pages
+    if (watermark) {
+      const font = await pdfDoc.embedFont('Helvetica');
+      pages.forEach(page => {
+        const { width, height } = page.getSize();
+        page.drawText(watermark.text, {
+          x: width / 2 - (watermark.text.length * 10),
+          y: height / 2,
+          size: watermark.size || 50,
+          color: watermark.color || { r: 0.5, g: 0.5, b: 0.5 },
+          opacity: watermark.opacity || 0.3,
+          rotate: { angle: watermark.rotation || 45 }
+        });
+      });
+    }
+
+    // Rotate pages if specified
+    if (rotate) {
+      const page = pages[rotate.page];
+      const currentRotation = page.getRotation().angle;
+      page.setRotation({ angle: currentRotation + (rotate.degrees || 90) });
+    }
+
+    // Save the edited PDF
+    const editedPdfBytes = await pdfDoc.save();
+    const outputFileName = req.file.filename.replace('.pdf', '-edited.pdf');
+    const outputPath = path.join(__dirname, '../uploads', outputFileName);
+    
+    await fs.writeFile(outputPath, editedPdfBytes);
+
+    // Track conversion
+    const ip = req.ip || req.connection.remoteAddress;
+    await trackConversion(
+      req.user ? req.user._id : null,
+      ip,
+      'edit-pdf',
+      req.file.originalname,
+      outputFileName,
+      editedPdfBytes.length,
+      req.body.storageType || 'temporary'
+    );
+
+    // Clean up original file
+    await fs.unlink(req.file.path);
+
+    const conversionTime = Date.now() - startTime;
+
+    res.json({
+      message: 'PDF edited successfully',
+      downloadUrl: `/api/convert/download/${outputFileName}`,
+      fileName: outputFileName,
+      fileSize: editedPdfBytes.length,
+      conversionTime,
+      editsApplied: {
+        texts: texts.length,
+        images: images.length,
+        annotations: annotations.length,
+        watermark: watermark ? true : false,
+        rotated: rotate ? true : false
+      }
+    });
+  } catch (error) {
+    console.error('PDF editing error:', error);
+    res.status(500).json({ 
+      message: 'Error editing PDF. Please ensure the PDF is valid and editing instructions are correct.', 
+      error: error.message 
+    });
+  }
+};
+
+// Download file from GridFS cloud storage
+exports.downloadCloudFile = async (req, res) => {
+  try {
+    const fileId = req.params.fileId;
+    
+    if (!fileId) {
+      return res.status(400).json({ message: 'File ID is required' });
+    }
+
+    // Stream file directly from GridFS to response
+    await streamFromGridFS(fileId, res);
+    
+  } catch (error) {
+    console.error('Cloud download error:', error);
+    
+    if (error.message === 'File not found in GridFS') {
+      return res.status(404).json({ message: 'File not found or expired' });
+    }
+    
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Error downloading file from cloud storage' });
+    }
+  }
 };

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isToolsOpen, SetIsToolsOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
@@ -35,10 +36,11 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             <div className="relative group">
-              <button className="text-gray-700 hover:text-primary-600 font-medium">
+              <button className="text-gray-700 hover:text-primary-600 font-medium" onClick={() => SetIsToolsOpen(!isToolsOpen)}>
                 Tools
               </button>
-              <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg hidden group-hover:block">
+              <div className={`absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg hidden group-hover:block`}>
+                {/** ${isToolsOpen ? "block" : "absolute"} */}
                 {tools.map((tool) => (
                   <Link
                     key={tool.path}

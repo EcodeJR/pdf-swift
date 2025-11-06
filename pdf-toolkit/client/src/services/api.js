@@ -54,10 +54,18 @@ export const authAPI = {
 
 // Conversion API
 export const conversionAPI = {
-  convertFile: async (endpoint, formData) => {
+  convertFile: async (endpoint, formData, onUploadProgress = null) => {
     const response = await api.post(`/convert/${endpoint}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onUploadProgress) {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          onUploadProgress(percentCompleted);
+        }
       },
     });
     return response.data;

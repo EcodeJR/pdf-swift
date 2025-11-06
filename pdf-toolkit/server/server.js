@@ -8,6 +8,8 @@ const path = require('path');
 const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
 const { initCloudUpload } = require('./middleware/upload');
+const { cleanupOldFiles } = require('./utils/fileManager');
+const { initGridFS, cleanupExpiredFiles } = require('./utils/gridfsHelper');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -19,7 +21,15 @@ const userRoutes = require('./routes/user');
 const app = express();
 
 // Connect to MongoDB
-connectDB();
+connectDB().then(() => {
+  // Initialize GridFS after successful DB connection
+  try {
+    initGridFS();
+    console.log('GridFS ready for cloud storage');
+  } catch (error) {
+    console.error('GridFS initialization failed:', error);
+  }
+});
 
 // Initialize cloud upload after DB connection
 initCloudUpload();
@@ -76,26 +86,17 @@ cron.schedule('0 * * * *', async () => {
   console.log('Running cleanup job...');
   
   try {
+    // Clean up local temporary files
     const uploadsPath = path.join(__dirname, 'uploads');
-    const files = await fs.readdir(uploadsPath);
-    const now = Date.now();
     const oneHour = 60 * 60 * 1000;
+    const localResult = await cleanupOldFiles(uploadsPath, oneHour);
+    console.log(`Local cleanup: Deleted ${localResult.deleted} files, skipped ${localResult.skipped} active files.`);
     
-    let deletedCount = 0;
+    // Clean up expired GridFS files
+    const gridfsDeleted = await cleanupExpiredFiles();
+    console.log(`GridFS cleanup: Deleted ${gridfsDeleted} expired files.`);
     
-    for (const file of files) {
-      const filePath = path.join(uploadsPath, file);
-      const stats = await fs.stat(filePath);
-      const fileAge = now - stats.mtimeMs;
-      
-      // Delete files older than 1 hour
-      if (fileAge > oneHour) {
-        await fs.unlink(filePath);
-        deletedCount++;
-      }
-    }
-    
-    console.log(`Cleanup completed. Deleted ${deletedCount} expired files.`);
+    console.log('Cleanup job completed successfully.');
   } catch (error) {
     console.error('Cleanup job error:', error);
   }
