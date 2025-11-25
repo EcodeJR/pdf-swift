@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiMenu, FiX, FiUser, FiLogOut, FiSettings, FiFolder } from 'react-icons/fi';
+import { FiMenu, FiX, FiUser, FiLogOut, FiSettings, FiFolder, FiChevronDown } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
@@ -10,18 +10,37 @@ const Navbar = () => {
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
 
+  const toolsRef = useRef(null);
+
   const handleLogout = () => {
     logout();
     navigate('/');
     setIsUserMenuOpen(false);
   };
 
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (toolsRef.current && !toolsRef.current.contains(event.target)) {
+        SetIsToolsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const tools = [
     { name: 'PDF to Word', path: '/pdf-to-word' },
     { name: 'PDF to Excel', path: '/pdf-to-excel' },
+    { name: 'PDF to JPG', path: '/pdf-to-jpg' },
+    { name: 'Word to PDF', path: '/word-to-pdf' },
+    { name: 'Excel to PDF', path: '/excel-to-pdf' },
+    { name: 'JPG to PDF', path: '/jpg-to-pdf' },
     { name: 'Compress PDF', path: '/compress-pdf' },
     { name: 'Merge PDF', path: '/merge-pdf' },
     { name: 'Split PDF', path: '/split-pdf' },
+    { name: 'Edit PDF', path: '/edit-pdf' },
   ];
 
   return (
@@ -35,22 +54,28 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <div className="relative group">
-              <button className="text-gray-700 hover:text-primary-600 font-medium" onClick={() => SetIsToolsOpen(!isToolsOpen)}>
-                Tools
+            <div className="relative" ref={toolsRef}>
+              <button 
+                className="flex items-center space-x-1 text-gray-700 hover:text-primary-600 font-medium" 
+                onClick={() => SetIsToolsOpen(!isToolsOpen)}
+              >
+                <span>Tools</span>
+                <FiChevronDown className={`w-4 h-4 transition-transform duration-200 ${isToolsOpen ? 'rotate-180' : ''}`} />
               </button>
-              <div className={`absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg hidden group-hover:block`}>
-                {/** ${isToolsOpen ? "block" : "absolute"} */}
-                {tools.map((tool) => (
-                  <Link
-                    key={tool.path}
-                    to={tool.path}
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-primary-50"
-                  >
-                    {tool.name}
-                  </Link>
-                ))}
-              </div>
+              {isToolsOpen && (
+                <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-100 py-1">
+                  {tools.map((tool) => (
+                    <Link
+                      key={tool.path}
+                      to={tool.path}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-primary-50"
+                      onClick={() => SetIsToolsOpen(false)}
+                    >
+                      {tool.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
             <Link to="/pricing" className="text-gray-700 hover:text-primary-600 font-medium">
               Pricing
@@ -63,7 +88,7 @@ const Navbar = () => {
                   className="flex items-center space-x-2 text-gray-700 hover:text-primary-600"
                 >
                   <FiUser className="w-5 h-5" />
-                  <span className="font-medium">{user?.email}</span>
+                  <span className="font-medium">{user?.name || user?.email?.split('@')[0]}</span>
                   {user?.isPremium && (
                     <span className="px-2 py-1 text-xs font-semibold text-white bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-full">
                       Premium

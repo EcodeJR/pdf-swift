@@ -564,9 +564,53 @@ exports.wordToPdf = async (req, res) => {
     // Read the DOCX file
     const docxBuffer = await fs.readFile(req.file.path);
     
+    // Validate file is not empty
+    if (docxBuffer.length === 0) {
+      await fs.unlink(req.file.path);
+      return res.status(400).json({ 
+        message: 'Error: Uploaded file is empty. Please select a valid Word document.' 
+      });
+    }
+
     // Convert to PDF using LibreOffice
-    const pdfBuffer = await libreConvert(docxBuffer, '.pdf', undefined);
-    
+    let pdfBuffer;
+    try {
+      pdfBuffer = await libreConvert(docxBuffer, '.pdf', undefined);
+    } catch (error) {
+      console.error('LibreOffice conversion error:', error.message);
+      
+      // Check if error is due to LibreOffice not found
+      if (error.message.includes('soffice') || error.message.includes('ENOENT') || error.code === 'ENOENT') {
+        // Clean up original file
+        try {
+          await fs.unlink(req.file.path);
+        } catch (e) {
+          console.error('Cleanup error:', e);
+        }
+        
+        return res.status(503).json({ 
+          message: 'LibreOffice service is unavailable. Please ensure LibreOffice is installed and properly configured in your system PATH.',
+          details: 'soffice executable not found. Install LibreOffice from https://www.libreoffice.org/'
+        });
+      }
+      
+      throw error;
+    }
+
+    // Validate output is not empty
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+      // Clean up original file
+      try {
+        await fs.unlink(req.file.path);
+      } catch (e) {
+        console.error('Cleanup error:', e);
+      }
+      
+      return res.status(400).json({ 
+        message: 'Conversion resulted in empty file. Please ensure your Word document is valid and not corrupted.' 
+      });
+    }
+
     const outputFileName = req.file.filename.replace(/\.(docx|doc)$/i, '.pdf');
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
     
@@ -598,8 +642,18 @@ exports.wordToPdf = async (req, res) => {
     });
   } catch (error) {
     console.error('Word to PDF error:', error);
+    
+    // Cleanup on error
+    if (req.file) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (e) {
+        console.error('Cleanup error:', e);
+      }
+    }
+
     res.status(500).json({ 
-      message: 'Error converting Word to PDF. Please ensure LibreOffice is installed and the file is valid.', 
+      message: 'Error converting Word to PDF. Please ensure: (1) Your file is a valid .docx/.doc document, (2) LibreOffice is installed, (3) Your file is not empty.',
       error: error.message 
     });
   }
@@ -617,9 +671,52 @@ exports.excelToPdf = async (req, res) => {
     // Read the XLSX file
     const xlsxBuffer = await fs.readFile(req.file.path);
     
+    // Validate file is not empty
+    if (xlsxBuffer.length === 0) {
+      await fs.unlink(req.file.path);
+      return res.status(400).json({ 
+        message: 'Error: Uploaded file is empty. Please select a valid Excel spreadsheet.' 
+      });
+    }
+
     // Convert to PDF using LibreOffice
-    const pdfBuffer = await libreConvert(xlsxBuffer, '.pdf', undefined);
-    
+    let pdfBuffer;
+    try {
+      pdfBuffer = await libreConvert(xlsxBuffer, '.pdf', undefined);
+    } catch (error) {
+      console.error('LibreOffice conversion error:', error.message);
+      
+      if (error.message.includes('soffice') || error.message.includes('ENOENT') || error.code === 'ENOENT') {
+        // Clean up original file
+        try {
+          await fs.unlink(req.file.path);
+        } catch (e) {
+          console.error('Cleanup error:', e);
+        }
+        
+        return res.status(503).json({ 
+          message: 'LibreOffice service is unavailable. Please ensure LibreOffice is installed and properly configured in your system PATH.',
+          details: 'soffice executable not found. Install LibreOffice from https://www.libreoffice.org/'
+        });
+      }
+      
+      throw error;
+    }
+
+    // Validate output is not empty
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+      // Clean up original file
+      try {
+        await fs.unlink(req.file.path);
+      } catch (e) {
+        console.error('Cleanup error:', e);
+      }
+      
+      return res.status(400).json({ 
+        message: 'Conversion resulted in empty file. Please ensure your Excel spreadsheet is valid and not corrupted.' 
+      });
+    }
+
     const outputFileName = req.file.filename.replace(/\.(xlsx|xls)$/i, '.pdf');
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
     
@@ -651,8 +748,18 @@ exports.excelToPdf = async (req, res) => {
     });
   } catch (error) {
     console.error('Excel to PDF error:', error);
+    
+    // Cleanup on error
+    if (req.file) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (e) {
+        console.error('Cleanup error:', e);
+      }
+    }
+
     res.status(500).json({ 
-      message: 'Error converting Excel to PDF. Please ensure LibreOffice is installed and the file is valid.', 
+      message: 'Error converting Excel to PDF. Please ensure: (1) Your file is a valid .xlsx/.xls spreadsheet, (2) LibreOffice is installed, (3) Your file is not empty.',
       error: error.message 
     });
   }

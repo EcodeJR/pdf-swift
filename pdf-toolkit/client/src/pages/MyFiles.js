@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { userAPI, conversionAPI } from '../services/api';
-import { FiDownload, FiTrash2, FiFile } from 'react-icons/fi';
+import { FiDownload, FiTrash2, FiFileText, FiFolder, FiArrowRight, FiFilter } from 'react-icons/fi';
 
 const MyFiles = () => {
   const [files, setFiles] = useState([]);
@@ -63,92 +64,95 @@ const MyFiles = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Files</h1>
-          <p className="text-gray-600 mt-2">
-            View and manage your cloud-stored files
-          </p>
-        </div>
-
-        {files.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <FiFile className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">No files yet</h2>
-            <p className="text-gray-600 mb-6">
-              Upload and convert files with cloud storage to see them here
-            </p>
-            <a
-              href="/"
-              className="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700"
+    <div className="min-h-screen bg-light">
+      {/* Header */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-hero font-bold">My Files</h1>
+              <p className="text-body-sm text-gray-600 mt-1">
+                {files.length} {files.length === 1 ? 'file' : 'files'} stored
+              </p>
+            </div>
+            <Link
+              to="/"
+              className="btn-primary flex items-center group"
             >
-              Start Converting
-            </a>
+              <FiArrowRight className="mr-2 group-hover:translate-x-1 transition-transform" />
+              Convert New File
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="section">
+        {files.length === 0 ? (
+          // Empty State
+          <div className="card text-center py-16">
+            <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FiFolder className="w-12 h-12 text-primary" />
+            </div>
+            <h3 className="text-heading-sm font-bold mb-2">No files yet</h3>
+            <p className="text-body-sm text-gray-600 mb-8">
+              Start converting files to see them here
+            </p>
+            <Link to="/" className="btn-primary inline-flex items-center group">
+              Convert Your First File
+              <FiArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+            </Link>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      File Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Size
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {files.map((file) => (
-                    <tr key={file._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <FiFile className="w-5 h-5 text-primary-600 mr-2" />
-                          <span className="text-sm font-medium text-gray-900">
-                            {file.outputFileName}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-primary-100 text-primary-800">
-                          {file.conversionType}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatFileSize(file.fileSize)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(file.createdAt)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        <a
-                          href={conversionAPI.downloadFile(file.outputFileName)}
-                          className="text-primary-600 hover:text-primary-900 inline-flex items-center"
-                        >
-                          <FiDownload className="mr-1" /> Download
-                        </a>
-                        <button
-                          onClick={() => handleDelete(file._id)}
-                          className="text-red-600 hover:text-red-900 inline-flex items-center ml-4"
-                        >
-                          <FiTrash2 className="mr-1" /> Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          // Files Grid
+          <div>
+            <div className="mb-6 flex items-center space-x-2">
+              <FiFilter className="w-5 h-5 text-gray-400" />
+              <p className="text-caption text-gray-600">Showing {files.length} files</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {files.map((file) => (
+                <div
+                  key={file._id}
+                  className="card group cursor-pointer hover:shadow-lg transition-all"
+                >
+                  {/* File Icon / Preview */}
+                  <div className="w-full h-32 bg-primary/5 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary/10 transition-colors">
+                    <FiFileText className="w-12 h-12 text-primary" />
+                  </div>
+
+                  {/* File Info */}
+                  <h3 className="font-semibold text-gray-900 truncate text-body-sm mb-1">
+                    {file.outputFileName}
+                  </h3>
+                  <p className="text-xs text-gray-600 mb-2">
+                    {file.conversionType?.toUpperCase()}
+                  </p>
+                  <p className="text-xs text-gray-500 mb-4">
+                    {formatFileSize(file.fileSize)} • {formatDate(file.createdAt)}
+                  </p>
+
+                  {/* Actions (show on hover) */}
+                  <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all">
+                    <a
+                      href={conversionAPI.downloadFile(file.outputFileName)}
+                      className="flex-1 btn-secondary py-2 px-3 text-xs flex items-center justify-center"
+                    >
+                      <FiDownload className="w-4 h-4 mr-1" /> Download
+                    </a>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleDelete(file._id);
+                      }}
+                      className="px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <FiTrash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

@@ -40,13 +40,6 @@ const PdfToJpg = () => {
     }
   };
 
-  const handleDownload = () => {
-    if (convertedFiles && convertedFiles.downloadUrl) {
-      window.location.href = convertedFiles.downloadUrl;
-      toast.success('Download started!');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-12">
@@ -57,10 +50,11 @@ const PdfToJpg = () => {
 
         <div className="bg-white rounded-lg shadow-lg p-8">
           <FileUploader
-            accept=".pdf,application/pdf"
-            onFileSelect={(files) => setSelectedFile(files[0])}
+            acceptedFiles={{ 'application/pdf': ['.pdf'] }}
+            onFilesSelect={(files) => setSelectedFile(files[0])}
             maxFiles={1}
             maxSize={user?.isPremium ? 50 * 1024 * 1024 : 10 * 1024 * 1024}
+            selectedFiles={selectedFile ? [selectedFile] : []}
           />
 
           {selectedFile && (
@@ -93,27 +87,16 @@ const PdfToJpg = () => {
             </div>
           )}
 
-          {convertedFiles && (
-            <div className="mt-6 p-6 bg-green-50 rounded-lg border-2 border-green-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-green-900 mb-2">
-                    Conversion Successful!
-                  </h3>
-                  <p className="text-sm text-green-700">
-                    {convertedFiles.pageCount > 1 
-                      ? `${convertedFiles.pageCount} images are ready to download (ZIP file)`
-                      : 'Your image is ready to download'}
-                  </p>
-                </div>
-                <button
-                  onClick={handleDownload}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center space-x-2"
-                >
-                  <FiDownload />
-                  <span>Download {convertedFiles.pageCount > 1 ? 'ZIP' : 'JPG'}</span>
-                </button>
-              </div>
+          {convertedFiles && user && user.isPremium && (
+            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
+              <p className="font-medium text-gray-900">{convertedFiles.fileName}</p>
+              <a
+                href={conversionAPI.downloadFile(convertedFiles.fileName)}
+                className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center"
+              >
+                <FiDownload className="mr-2" />
+                Download
+              </a>
             </div>
           )}
         </div>
@@ -141,10 +124,13 @@ const PdfToJpg = () => {
         </div>
       </div>
 
-      {showAdModal && (
+      {showAdModal && convertedFiles && (
         <VideoAdModal
-          onComplete={handleDownload}
+          isOpen={showAdModal}
           onClose={() => setShowAdModal(false)}
+          onAdComplete={() => toast.success('Conversion complete!')}
+          downloadUrl={conversionAPI.downloadFile(convertedFiles.fileName)}
+          fileName={convertedFiles.fileName}
         />
       )}
     </div>

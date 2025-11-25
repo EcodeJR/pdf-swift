@@ -24,7 +24,7 @@ const generateToken = (userId) => {
 // @access  Public
 router.post('/register', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, name } = req.body;
 
     // Validation
     if (!email || !password) {
@@ -47,6 +47,7 @@ router.post('/register', async (req, res) => {
 
     // Create user
     const user = await User.create({
+      name: name || null,
       email,
       password: hashedPassword
     });
@@ -61,6 +62,7 @@ router.post('/register', async (req, res) => {
       token,
       user: {
         id: user._id,
+        name: user.name,
         email: user.email,
         isPremium: user.isPremium,
         conversionsThisHour: user.conversionsThisHour
@@ -119,6 +121,7 @@ router.post('/login', async (req, res) => {
       token,
       user: {
         id: user._id,
+        name: user.name,
         email: user.email,
         isPremium: user.isPremium,
         conversionsThisHour: user.conversionsThisHour
@@ -139,6 +142,7 @@ router.get('/me', protect, async (req, res) => {
     res.json({
       user: {
         id: user._id,
+        name: user.name,
         email: user.email,
         isPremium: user.isPremium,
         subscriptionStatus: user.subscriptionStatus,

@@ -93,7 +93,7 @@ This guide walks you through deploying the PDF Toolkit application to production
    CLIENT_URL=https://your-frontend-url.vercel.app
    MAX_FILE_SIZE_FREE=10485760
    MAX_FILE_SIZE_PREMIUM=52428800
-   FREE_CONVERSIONS_PER_HOUR=3
+   FREE_CONVERSIONS_PER_HOUR=5
    ```
 
 5. **Deploy**

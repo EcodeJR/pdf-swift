@@ -26,7 +26,7 @@ router.get('/stats', protect, async (req, res) => {
 
     res.json({
       conversionsThisHour: user.conversionsThisHour,
-      conversionsLimit: user.isPremium ? 'Unlimited' : 3,
+      conversionsLimit: user.isPremium ? 'Unlimited' : 5,
       conversionsThisMonth,
       filesStored: user.filesStored.length,
       storageUsed: storageUsed,
@@ -106,6 +106,38 @@ router.delete('/files/:id', protect, async (req, res) => {
   } catch (error) {
     console.error('Delete file error:', error);
     res.status(500).json({ message: 'Error deleting file' });
+  }
+});
+
+// @route   PUT /api/user/profile
+// @desc    Update user profile (name, etc.)
+// @access  Private
+router.put('/profile', protect, async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ message: 'Name cannot be empty' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { name: name.trim() },
+      { new: true }
+    ).select('-password');
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isPremium: user.isPremium
+      }
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ message: 'Error updating profile' });
   }
 });
 

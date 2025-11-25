@@ -26,8 +26,8 @@ api.interceptors.request.use(
 
 // Auth API
 export const authAPI = {
-  register: async (email, password) => {
-    const response = await api.post('/auth/register', { email, password });
+  register: async (email, password, name = null) => {
+    const response = await api.post('/auth/register', { email, password, name });
     return response.data;
   },
   
@@ -113,6 +113,11 @@ export const userAPI = {
   
   getConversionHistory: async (page = 1, limit = 20) => {
     const response = await api.get(`/user/conversion-history?page=${page}&limit=${limit}`);
+    return response.data;
+  },
+
+  updateProfile: async (name) => {
+    const response = await api.put('/user/profile', { name });
     return response.data;
   },
 };
