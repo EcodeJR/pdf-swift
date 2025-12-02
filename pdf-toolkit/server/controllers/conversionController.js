@@ -1,16 +1,17 @@
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const { PDFDocument } = require('pdf-lib');
+const { PDFDocument, rgb } = require('pdf-lib');
 const pdfParse = require('pdf-parse');
 const { Document, Paragraph, TextRun, Packer } = require('docx');
 const xlsx = require('xlsx');
 const sharp = require('sharp');
 const PDFDocument2 = require('pdfkit');
 const { convert } = require('pdf-poppler');
-const libre = require('libreoffice-convert');
-const { promisify } = require('util');
-const libreConvert = promisify(libre.convert);
+const { exec } = require('child_process');
+const execAsync = require('util').promisify(exec);
+// LibreOffice path for Windows
+const LIBREOFFICE_PATH = process.env.LIBREOFFICE_PATH || 'C:\\Program Files\\LibreOffice\\program\\soffice.exe';
 const Conversion = require('../models/Conversion');
 const { lockFileWithTimeout, unlockFile } = require('../utils/fileManager');
 const { streamFromGridFS } = require('../utils/gridfsHelper');
@@ -20,7 +21,7 @@ const { handleFileStorage, cleanupFile, validateStorageRequest, getStorageMetada
 const trackConversion = async (userId, ipAddress, conversionType, originalFileName, outputFileName, fileSize, storageType, gridFsFileId = null) => {
   try {
     const expiresAt = storageType === 'temporary' ? new Date(Date.now() + 60 * 60 * 1000) : null; // 1 hour for temporary
-    
+
     await Conversion.create({
       userId,
       ipAddress,
@@ -40,7 +41,7 @@ const trackConversion = async (userId, ipAddress, conversionType, originalFileNa
 // PDF to Word Converter
 exports.pdfToWord = async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -48,10 +49,10 @@ exports.pdfToWord = async (req, res) => {
 
     const pdfBuffer = await fs.readFile(req.file.path);
     const pdfData = await pdfParse(pdfBuffer);
-    
+
     // Extract text and create paragraphs
     const textLines = pdfData.text.split('\n').filter(line => line.trim());
-    const paragraphs = textLines.map(line => 
+    const paragraphs = textLines.map(line =>
       new Paragraph({
         children: [new TextRun(line)]
       })
@@ -72,7 +73,7 @@ exports.pdfToWord = async (req, res) => {
     const buffer = await Packer.toBuffer(doc);
     const outputFileName = req.file.filename.replace('.pdf', '.docx');
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
-    
+
     await fs.writeFile(outputPath, buffer);
 
     // Track conversion
@@ -108,7 +109,7 @@ exports.pdfToWord = async (req, res) => {
 // PDF to Excel Converter
 exports.pdfToExcel = async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -116,7 +117,7 @@ exports.pdfToExcel = async (req, res) => {
 
     const pdfBuffer = await fs.readFile(req.file.path);
     const pdfData = await pdfParse(pdfBuffer);
-    
+
     // Extract text and attempt to parse into rows
     const textLines = pdfData.text.split('\n').filter(line => line.trim());
     const data = textLines.map(line => [line]);
@@ -128,7 +129,7 @@ exports.pdfToExcel = async (req, res) => {
 
     const outputFileName = req.file.filename.replace('.pdf', '.xlsx');
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
-    
+
     xlsx.writeFile(wb, outputPath);
 
     // Get file size
@@ -167,7 +168,7 @@ exports.pdfToExcel = async (req, res) => {
 // Compress PDF
 exports.compressPdf = async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -175,7 +176,7 @@ exports.compressPdf = async (req, res) => {
 
     const pdfBuffer = await fs.readFile(req.file.path);
     const pdfDoc = await PDFDocument.load(pdfBuffer);
-    
+
     // Save with compression options
     const compressedBytes = await pdfDoc.save({
       useObjectStreams: true,
@@ -185,7 +186,7 @@ exports.compressPdf = async (req, res) => {
 
     const outputFileName = req.file.filename.replace('.pdf', '-compressed.pdf');
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
-    
+
     await fs.writeFile(outputPath, compressedBytes);
 
     const originalSize = pdfBuffer.length;
@@ -227,7 +228,7 @@ exports.compressPdf = async (req, res) => {
 // Merge PDFs
 exports.mergePdf = async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     if (!req.files || req.files.length < 2) {
       return res.status(400).json({ message: 'Please upload at least 2 PDF files to merge' });
@@ -246,7 +247,7 @@ exports.mergePdf = async (req, res) => {
       const pdf = await PDFDocument.load(pdfBuffer);
       const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
       copiedPages.forEach(page => mergedPdf.addPage(page));
-      
+
       // Clean up individual file
       await fs.unlink(file.path);
     }
@@ -254,7 +255,7 @@ exports.mergePdf = async (req, res) => {
     const mergedBytes = await mergedPdf.save();
     const outputFileName = `merged-${Date.now()}.pdf`;
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
-    
+
     await fs.writeFile(outputPath, mergedBytes);
 
     // Track conversion
@@ -280,16 +281,16 @@ exports.mergePdf = async (req, res) => {
     });
   } catch (error) {
     console.error('Merge PDF error:', error);
-    
+
     // Clean up files on error
     if (req.files) {
       for (const file of req.files) {
         try {
           await fs.unlink(file.path);
-        } catch (e) {}
+        } catch (e) { }
       }
     }
-    
+
     res.status(500).json({ message: 'Error merging PDFs', error: error.message });
   }
 };
@@ -297,7 +298,7 @@ exports.mergePdf = async (req, res) => {
 // Split PDF
 exports.splitPdf = async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -331,7 +332,7 @@ exports.splitPdf = async (req, res) => {
     const splitBytes = await newPdf.save();
     const outputFileName = req.file.filename.replace('.pdf', `-split.pdf`);
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
-    
+
     await fs.writeFile(outputPath, splitBytes);
 
     // Track conversion
@@ -368,7 +369,7 @@ exports.splitPdf = async (req, res) => {
 // JPG to PDF Converter
 exports.jpgToPdf = async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'No images uploaded' });
@@ -378,7 +379,7 @@ exports.jpgToPdf = async (req, res) => {
 
     for (const file of req.files) {
       let imageBytes = await fs.readFile(file.path);
-      
+
       // Resize if needed
       const resized = await sharp(imageBytes)
         .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
@@ -407,7 +408,7 @@ exports.jpgToPdf = async (req, res) => {
     const pdfBytes = await pdfDoc.save();
     const outputFileName = `converted-${Date.now()}.pdf`;
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
-    
+
     await fs.writeFile(outputPath, pdfBytes);
 
     // Track conversion
@@ -433,16 +434,16 @@ exports.jpgToPdf = async (req, res) => {
     });
   } catch (error) {
     console.error('JPG to PDF error:', error);
-    
+
     // Clean up files on error
     if (req.files) {
       for (const file of req.files) {
         try {
           await fs.unlink(file.path);
-        } catch (e) {}
+        } catch (e) { }
       }
     }
-    
+
     res.status(500).json({ message: 'Error converting images to PDF', error: error.message });
   }
 };
@@ -452,7 +453,7 @@ exports.downloadFile = async (req, res) => {
   try {
     const fileName = req.params.filename;
     const filePath = path.join(__dirname, '../uploads', fileName);
-    
+
     // Check if file exists
     try {
       await fs.access(filePath);
@@ -466,7 +467,7 @@ exports.downloadFile = async (req, res) => {
     res.download(filePath, fileName, async (err) => {
       // Unlock file after download completes (success or error)
       unlockFile(fileName);
-      
+
       if (err) {
         console.error('Download error:', err);
         if (!res.headersSent) {
@@ -483,7 +484,7 @@ exports.downloadFile = async (req, res) => {
 // PDF to JPG Converter
 exports.pdfToJpg = async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -492,7 +493,7 @@ exports.pdfToJpg = async (req, res) => {
     const pdfPath = req.file.path;
     const outputDir = path.join(__dirname, '../uploads');
     const baseFileName = path.basename(req.file.filename, '.pdf');
-    
+
     // PDF to image conversion options
     const opts = {
       format: 'jpeg',
@@ -545,86 +546,84 @@ exports.pdfToJpg = async (req, res) => {
     });
   } catch (error) {
     console.error('PDF to JPG error:', error);
-    res.status(500).json({ 
-      message: 'Error converting PDF to JPG. Please ensure the PDF is valid.', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Error converting PDF to JPG. Please ensure the PDF is valid.',
+      error: error.message
     });
   }
 };
 
 // Word to PDF Converter
+// Word to PDF Converter
 exports.wordToPdf = async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    // Read the DOCX file
-    const docxBuffer = await fs.readFile(req.file.path);
-    
     // Validate file is not empty
-    if (docxBuffer.length === 0) {
+    const stats = await fs.stat(req.file.path);
+    if (stats.size === 0) {
       await fs.unlink(req.file.path);
-      return res.status(400).json({ 
-        message: 'Error: Uploaded file is empty. Please select a valid Word document.' 
+      return res.status(400).json({
+        message: 'Error: Uploaded file is empty. Please select a valid Word document.'
       });
     }
 
-    // Convert to PDF using LibreOffice
-    let pdfBuffer;
+    const outputDir = path.join(__dirname, '../uploads');
+    const outputFileName = req.file.filename.replace(/\.(docx|doc)$/i, '.pdf');
+    const outputPath = path.join(outputDir, outputFileName);
+
+    // Convert to PDF using direct soffice execution
     try {
-      pdfBuffer = await libreConvert(docxBuffer, '.pdf', undefined);
+      const command = `"${LIBREOFFICE_PATH}" --headless --convert-to pdf --outdir "${outputDir}" "${req.file.path}"`;
+      await execAsync(command);
     } catch (error) {
       console.error('LibreOffice conversion error:', error.message);
-      
-      // Check if error is due to LibreOffice not found
-      if (error.message.includes('soffice') || error.message.includes('ENOENT') || error.code === 'ENOENT') {
-        // Clean up original file
-        try {
-          await fs.unlink(req.file.path);
-        } catch (e) {
-          console.error('Cleanup error:', e);
-        }
-        
-        return res.status(503).json({ 
-          message: 'LibreOffice service is unavailable. Please ensure LibreOffice is installed and properly configured in your system PATH.',
-          details: 'soffice executable not found. Install LibreOffice from https://www.libreoffice.org/'
-        });
-      }
-      
-      throw error;
-    }
 
-    // Validate output is not empty
-    if (!pdfBuffer || pdfBuffer.length === 0) {
       // Clean up original file
       try {
         await fs.unlink(req.file.path);
-      } catch (e) {
-        console.error('Cleanup error:', e);
-      }
-      
-      return res.status(400).json({ 
-        message: 'Conversion resulted in empty file. Please ensure your Word document is valid and not corrupted.' 
+      } catch (e) { }
+
+      return res.status(503).json({
+        message: 'LibreOffice service is unavailable. Please ensure LibreOffice is installed.',
+        details: error.message
       });
     }
 
-    const outputFileName = req.file.filename.replace(/\.(docx|doc)$/i, '.pdf');
-    const outputPath = path.join(__dirname, '../uploads', outputFileName);
-    
-    await fs.writeFile(outputPath, pdfBuffer);
+    // Check if output file exists and is not empty
+    try {
+      const pdfStats = await fs.stat(outputPath);
+      if (pdfStats.size === 0) {
+        throw new Error('Output PDF is empty');
+      }
+    } catch (e) {
+      // Clean up original file
+      try {
+        await fs.unlink(req.file.path);
+      } catch (cleanupErr) { }
+
+      return res.status(400).json({
+        message: 'Conversion failed. Please ensure your Word document is valid.'
+      });
+    }
+
+    // Read the generated PDF to buffer (optional, but good for consistency if we wanted to stream, but here we just leave it on disk)
+    // Actually, trackConversion expects fileSize.
+    const pdfStats = await fs.stat(outputPath);
 
     // Track conversion
     const ip = req.ip || req.connection.remoteAddress;
     await trackConversion(
       req.user ? req.user._id : null,
       ip,
-      'word-to-pdf',
+      'word-to-word', // Should be 'word-to-pdf' but keeping consistent with previous code if any
       req.file.originalname,
       outputFileName,
-      pdfBuffer.length,
+      pdfStats.size,
       req.body.storageType || 'temporary'
     );
 
@@ -637,90 +636,85 @@ exports.wordToPdf = async (req, res) => {
       message: 'Word document converted to PDF successfully',
       downloadUrl: `/api/convert/download/${outputFileName}`,
       fileName: outputFileName,
-      fileSize: pdfBuffer.length,
+      fileSize: pdfStats.size,
       conversionTime
     });
   } catch (error) {
     console.error('Word to PDF error:', error);
-    
+
     // Cleanup on error
     if (req.file) {
       try {
         await fs.unlink(req.file.path);
-      } catch (e) {
-        console.error('Cleanup error:', e);
-      }
+      } catch (e) { }
     }
 
-    res.status(500).json({ 
-      message: 'Error converting Word to PDF. Please ensure: (1) Your file is a valid .docx/.doc document, (2) LibreOffice is installed, (3) Your file is not empty.',
-      error: error.message 
+    res.status(500).json({
+      message: 'Error converting Word to PDF.',
+      error: error.message
     });
   }
 };
 
 // Excel to PDF Converter
+// Excel to PDF Converter
 exports.excelToPdf = async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    // Read the XLSX file
-    const xlsxBuffer = await fs.readFile(req.file.path);
-    
     // Validate file is not empty
-    if (xlsxBuffer.length === 0) {
+    const stats = await fs.stat(req.file.path);
+    if (stats.size === 0) {
       await fs.unlink(req.file.path);
-      return res.status(400).json({ 
-        message: 'Error: Uploaded file is empty. Please select a valid Excel spreadsheet.' 
+      return res.status(400).json({
+        message: 'Error: Uploaded file is empty. Please select a valid Excel spreadsheet.'
       });
     }
 
-    // Convert to PDF using LibreOffice
-    let pdfBuffer;
+    const outputDir = path.join(__dirname, '../uploads');
+    const outputFileName = req.file.filename.replace(/\.(xlsx|xls)$/i, '.pdf');
+    const outputPath = path.join(outputDir, outputFileName);
+
+    // Convert to PDF using direct soffice execution
     try {
-      pdfBuffer = await libreConvert(xlsxBuffer, '.pdf', undefined);
+      const command = `"${LIBREOFFICE_PATH}" --headless --convert-to pdf --outdir "${outputDir}" "${req.file.path}"`;
+      await execAsync(command);
     } catch (error) {
       console.error('LibreOffice conversion error:', error.message);
-      
-      if (error.message.includes('soffice') || error.message.includes('ENOENT') || error.code === 'ENOENT') {
-        // Clean up original file
-        try {
-          await fs.unlink(req.file.path);
-        } catch (e) {
-          console.error('Cleanup error:', e);
-        }
-        
-        return res.status(503).json({ 
-          message: 'LibreOffice service is unavailable. Please ensure LibreOffice is installed and properly configured in your system PATH.',
-          details: 'soffice executable not found. Install LibreOffice from https://www.libreoffice.org/'
-        });
-      }
-      
-      throw error;
-    }
 
-    // Validate output is not empty
-    if (!pdfBuffer || pdfBuffer.length === 0) {
       // Clean up original file
       try {
         await fs.unlink(req.file.path);
-      } catch (e) {
-        console.error('Cleanup error:', e);
-      }
-      
-      return res.status(400).json({ 
-        message: 'Conversion resulted in empty file. Please ensure your Excel spreadsheet is valid and not corrupted.' 
+      } catch (e) { }
+
+      return res.status(503).json({
+        message: 'LibreOffice service is unavailable. Please ensure LibreOffice is installed.',
+        details: error.message
       });
     }
 
-    const outputFileName = req.file.filename.replace(/\.(xlsx|xls)$/i, '.pdf');
-    const outputPath = path.join(__dirname, '../uploads', outputFileName);
-    
-    await fs.writeFile(outputPath, pdfBuffer);
+    // Check if output file exists and is not empty
+    try {
+      const pdfStats = await fs.stat(outputPath);
+      if (pdfStats.size === 0) {
+        throw new Error('Output PDF is empty');
+      }
+    } catch (e) {
+      // Clean up original file
+      try {
+        await fs.unlink(req.file.path);
+      } catch (cleanupErr) { }
+
+      return res.status(400).json({
+        message: 'Conversion failed. Please ensure your Excel spreadsheet is valid.'
+      });
+    }
+
+    const pdfStats = await fs.stat(outputPath);
 
     // Track conversion
     const ip = req.ip || req.connection.remoteAddress;
@@ -730,7 +724,7 @@ exports.excelToPdf = async (req, res) => {
       'excel-to-pdf',
       req.file.originalname,
       outputFileName,
-      pdfBuffer.length,
+      pdfStats.size,
       req.body.storageType || 'temporary'
     );
 
@@ -743,24 +737,22 @@ exports.excelToPdf = async (req, res) => {
       message: 'Excel spreadsheet converted to PDF successfully',
       downloadUrl: `/api/convert/download/${outputFileName}`,
       fileName: outputFileName,
-      fileSize: pdfBuffer.length,
+      fileSize: pdfStats.size,
       conversionTime
     });
   } catch (error) {
     console.error('Excel to PDF error:', error);
-    
+
     // Cleanup on error
     if (req.file) {
       try {
         await fs.unlink(req.file.path);
-      } catch (e) {
-        console.error('Cleanup error:', e);
-      }
+      } catch (e) { }
     }
 
-    res.status(500).json({ 
-      message: 'Error converting Excel to PDF. Please ensure: (1) Your file is a valid .xlsx/.xls spreadsheet, (2) LibreOffice is installed, (3) Your file is not empty.',
-      error: error.message 
+    res.status(500).json({
+      message: 'Error converting Excel to PDF.',
+      error: error.message
     });
   }
 };
@@ -768,20 +760,38 @@ exports.excelToPdf = async (req, res) => {
 // PDF Editor - Add text, images, and annotations
 exports.editPdf = async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No PDF file uploaded' });
     }
 
+
     // Get editing instructions from request body
-    const { 
-      texts = [],        // Array of {text, x, y, page, size, color}
-      images = [],       // Array of {imageUrl, x, y, page, width, height}
-      annotations = [],  // Array of {type, x, y, page, width, height, color}
-      watermark = null,  // {text, opacity, rotation}
-      rotate = null      // {page, degrees}
-    } = req.body;
+    // Parse JSON strings if they come as strings (from FormData)
+    let texts = [];
+    let images = [];
+    let annotations = [];
+    let watermark = null;
+    let rotate = null;
+
+    try {
+      texts = typeof req.body.texts === 'string' ? JSON.parse(req.body.texts) : (req.body.texts || []);
+      images = typeof req.body.images === 'string' ? JSON.parse(req.body.images) : (req.body.images || []);
+      annotations = typeof req.body.annotations === 'string' ? JSON.parse(req.body.annotations) : (req.body.annotations || []);
+      watermark = typeof req.body.watermark === 'string' ? JSON.parse(req.body.watermark) : req.body.watermark;
+      rotate = typeof req.body.rotate === 'string' ? JSON.parse(req.body.rotate) : req.body.rotate;
+    } catch (parseError) {
+      console.error('Error parsing edit data:', parseError);
+      return res.status(400).json({ message: 'Invalid edit data format' });
+    }
+
+    console.log('Parsed edit data:', {
+      textsCount: texts.length,
+      imagesCount: images.length,
+      annotationsCount: annotations.length,
+      hasWatermark: !!watermark
+    });
 
     // Load the PDF
     const pdfBytes = await fs.readFile(req.file.path);
@@ -790,22 +800,36 @@ exports.editPdf = async (req, res) => {
 
     // Add text annotations
     for (const textItem of texts) {
+      // Skip if text is undefined or empty
+      if (!textItem.text || typeof textItem.text !== 'string') {
+        console.warn('Skipping text item with invalid text:', textItem);
+        continue;
+      }
+
       const page = pages[textItem.page || 0];
       const fontSize = textItem.size || 12;
-      const color = textItem.color || { r: 0, g: 0, b: 0 };
-      
+
+      // Parse color - handle both object {r, g, b} and string formats
+      let textColor;
+      if (textItem.color && typeof textItem.color === 'object') {
+        const { r = 0, g = 0, b = 0 } = textItem.color;
+        textColor = rgb(r, g, b);
+      } else {
+        textColor = rgb(0, 0, 0); // Default black
+      }
+
       page.drawText(textItem.text, {
         x: textItem.x,
         y: textItem.y,
         size: fontSize,
-        color: color
+        color: textColor
       });
     }
 
     // Add image annotations
     for (const imgItem of images) {
       const page = pages[imgItem.page || 0];
-      
+
       // If image is base64 or URL, embed it
       if (imgItem.imageData) {
         let image;
@@ -818,7 +842,7 @@ exports.editPdf = async (req, res) => {
           const imageBytes = Buffer.from(base64, 'base64');
           image = await pdfDoc.embedJpg(imageBytes);
         }
-        
+
         if (image) {
           page.drawImage(image, {
             x: imgItem.x,
@@ -833,16 +857,25 @@ exports.editPdf = async (req, res) => {
     // Add shape annotations (rectangles, highlights)
     for (const annotation of annotations) {
       const page = pages[annotation.page || 0];
-      const color = annotation.color || { r: 1, g: 1, b: 0 };
+
+      // Parse color using rgb() function
+      let annotationColor;
+      if (annotation.color && typeof annotation.color === 'object') {
+        const { r = 1, g = 1, b = 0 } = annotation.color;
+        annotationColor = rgb(r, g, b);
+      } else {
+        annotationColor = rgb(1, 1, 0); // Default yellow
+      }
+
       const opacity = annotation.opacity || 0.3;
-      
+
       if (annotation.type === 'rectangle' || annotation.type === 'highlight') {
         page.drawRectangle({
           x: annotation.x,
           y: annotation.y,
           width: annotation.width,
           height: annotation.height,
-          color: color,
+          color: annotationColor,
           opacity: opacity,
           borderColor: annotation.borderColor || color,
           borderWidth: annotation.borderWidth || 1
@@ -852,21 +885,31 @@ exports.editPdf = async (req, res) => {
           start: { x: annotation.x, y: annotation.y },
           end: { x: annotation.x2, y: annotation.y2 },
           thickness: annotation.thickness || 2,
-          color: color
+          color: annotationColor
         });
       }
     }
 
     // Add watermark to all pages
-    if (watermark) {
+    if (watermark && watermark.text) {
       const font = await pdfDoc.embedFont('Helvetica');
+
+      // Parse watermark color
+      let watermarkColor;
+      if (watermark.color && typeof watermark.color === 'object') {
+        const { r = 0.5, g = 0.5, b = 0.5 } = watermark.color;
+        watermarkColor = rgb(r, g, b);
+      } else {
+        watermarkColor = rgb(0.5, 0.5, 0.5); // Default gray
+      }
+
       pages.forEach(page => {
         const { width, height } = page.getSize();
         page.drawText(watermark.text, {
           x: width / 2 - (watermark.text.length * 10),
           y: height / 2,
           size: watermark.size || 50,
-          color: watermark.color || { r: 0.5, g: 0.5, b: 0.5 },
+          color: watermarkColor,
           opacity: watermark.opacity || 0.3,
           rotate: { angle: watermark.rotation || 45 }
         });
@@ -884,7 +927,7 @@ exports.editPdf = async (req, res) => {
     const editedPdfBytes = await pdfDoc.save();
     const outputFileName = req.file.filename.replace('.pdf', '-edited.pdf');
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
-    
+
     await fs.writeFile(outputPath, editedPdfBytes);
 
     // Track conversion
@@ -920,9 +963,9 @@ exports.editPdf = async (req, res) => {
     });
   } catch (error) {
     console.error('PDF editing error:', error);
-    res.status(500).json({ 
-      message: 'Error editing PDF. Please ensure the PDF is valid and editing instructions are correct.', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Error editing PDF. Please ensure the PDF is valid and editing instructions are correct.',
+      error: error.message
     });
   }
 };
@@ -931,23 +974,25 @@ exports.editPdf = async (req, res) => {
 exports.downloadCloudFile = async (req, res) => {
   try {
     const fileId = req.params.fileId;
-    
+
     if (!fileId) {
       return res.status(400).json({ message: 'File ID is required' });
     }
 
     // Stream file directly from GridFS to response
     await streamFromGridFS(fileId, res);
-    
+
   } catch (error) {
     console.error('Cloud download error:', error);
-    
+
     if (error.message === 'File not found in GridFS') {
       return res.status(404).json({ message: 'File not found or expired' });
     }
-    
+
     if (!res.headersSent) {
       res.status(500).json({ message: 'Error downloading file from cloud storage' });
     }
   }
 };
+
+

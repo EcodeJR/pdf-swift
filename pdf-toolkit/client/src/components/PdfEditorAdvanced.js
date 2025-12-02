@@ -1,34 +1,29 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { FiType, FiImage, FiSquare, FiCircle, FiMinus, FiDroplet, FiTrash2, FiEdit2 } from 'react-icons/fi';
 
-// Set up PDF.js worker - environment-aware
-if (process.env.NODE_ENV === 'development') {
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
-    import.meta.url
-  ).toString();
-} else {
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-}
+// Set up PDF.js worker from public folder
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
+  const [fileUrl, setFileUrl] = useState(null);
   const [numPages, setNumPages] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.0);
-  
+  const [loadError, setLoadError] = useState(null);
+
   // Tools
   const [tool, setTool] = useState('text');
   const [selectedElement, setSelectedElement] = useState(null);
-  
+
   // Elements
   const [texts, setTexts] = useState([]);
   const [images, setImages] = useState([]);
   const [shapes, setShapes] = useState([]);
   const [watermark, setWatermark] = useState(null);
-  
+
   // Tool settings
   const [textSettings, setTextSettings] = useState({
     content: '',
@@ -37,7 +32,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
     bold: false,
     italic: false
   });
-  
+
   const [shapeSettings, setShapeSettings] = useState({
     type: 'rectangle',
     fillColor: '#FFFF00',
@@ -48,14 +43,34 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
 
   const fileInputRef = useRef(null);
 
+  // Convert File object to URL for react-pdf
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setFileUrl(url);
+      setLoadError(null);
+
+      // Cleanup function to revoke the object URL
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    }
+  }, [file]);
+
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
+    setLoadError(null);
+  };
+
+  const onDocumentLoadError = (error) => {
+    console.error('PDF load error:', error);
+    setLoadError('Failed to load PDF file. Please try again with a different file.');
   };
 
   // Add text element
   const handleCanvasClick = (e) => {
     if (tool === 'select') return;
-    
+
     const rect = e.target.getBoundingClientRect();
     const x = (e.clientX - rect.left) / scale;
     const y = (e.clientY - rect.top) / scale;
@@ -125,7 +140,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
   // Delete selected element
   const deleteElement = () => {
     if (!selectedElement) return;
-    
+
     if (selectedElement.type === 'text') {
       setTexts(texts.filter(t => t.id !== selectedElement.id));
     } else if (selectedElement.type === 'image') {
@@ -144,7 +159,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
   const handleMouseDown = (e, element, type) => {
     e.stopPropagation();
     setSelectedElement({ type, id: element.id });
-    
+
     const rect = e.currentTarget.getBoundingClientRect();
     setDragOffset({
       x: e.clientX - rect.left,
@@ -156,22 +171,22 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
   // Handle dragging
   const handleMouseMove = (e) => {
     if (!dragging) return;
-    
+
     const canvas = e.currentTarget;
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left - dragOffset.x) / scale;
     const y = (e.clientY - rect.top - dragOffset.y) / scale;
 
     if (dragging.type === 'text') {
-      setTexts(texts.map(t => 
+      setTexts(texts.map(t =>
         t.id === dragging.id ? { ...t, x, y: 800 - y } : t
       ));
     } else if (dragging.type === 'image') {
-      setImages(images.map(i => 
+      setImages(images.map(i =>
         i.id === dragging.id ? { ...i, x, y: 800 - y } : i
       ));
     } else if (dragging.type === 'shape') {
-      setShapes(shapes.map(s => 
+      setShapes(shapes.map(s =>
         s.id === dragging.id ? { ...s, x, y: 800 - y } : s
       ));
     }
@@ -185,17 +200,17 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
   // Update element properties
   const updateElement = (updates) => {
     if (!selectedElement) return;
-    
+
     if (selectedElement.type === 'text') {
-      setTexts(texts.map(t => 
+      setTexts(texts.map(t =>
         t.id === selectedElement.id ? { ...t, ...updates } : t
       ));
     } else if (selectedElement.type === 'image') {
-      setImages(images.map(i => 
+      setImages(images.map(i =>
         i.id === selectedElement.id ? { ...i, ...updates } : i
       ));
     } else if (selectedElement.type === 'shape') {
-      setShapes(shapes.map(s => 
+      setShapes(shapes.map(s =>
         s.id === selectedElement.id ? { ...s, ...updates } : s
       ));
     }
@@ -291,21 +306,21 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
               <FiImage size={20} />
             </button>
             <button
-              onClick={() => { setTool('shape'); setShapeSettings({...shapeSettings, type: 'rectangle'}); }}
+              onClick={() => { setTool('shape'); setShapeSettings({ ...shapeSettings, type: 'rectangle' }); }}
               className={`p-3 rounded ${tool === 'shape' && shapeSettings.type === 'rectangle' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-100'}`}
               title="Rectangle"
             >
               <FiSquare size={20} />
             </button>
             <button
-              onClick={() => { setTool('shape'); setShapeSettings({...shapeSettings, type: 'circle'}); }}
+              onClick={() => { setTool('shape'); setShapeSettings({ ...shapeSettings, type: 'circle' }); }}
               className={`p-3 rounded ${tool === 'shape' && shapeSettings.type === 'circle' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-100'}`}
               title="Circle"
             >
               <FiCircle size={20} />
             </button>
             <button
-              onClick={() => { setTool('shape'); setShapeSettings({...shapeSettings, type: 'line'}); }}
+              onClick={() => { setTool('shape'); setShapeSettings({ ...shapeSettings, type: 'line' }); }}
               className={`p-3 rounded ${tool === 'shape' && shapeSettings.type === 'line' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-100'}`}
               title="Line"
             >
@@ -332,7 +347,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
           {/* Properties Panel */}
           <div className="w-72 border-r p-4 overflow-y-auto bg-gray-50">
             <h4 className="font-semibold mb-4 text-gray-900">Properties</h4>
-            
+
             {/* Text Tool Settings */}
             {tool === 'text' && (
               <div className="space-y-4">
@@ -340,7 +355,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
                   <label className="block text-sm font-medium mb-1">Text Content</label>
                   <textarea
                     value={textSettings.content}
-                    onChange={(e) => setTextSettings({...textSettings, content: e.target.value})}
+                    onChange={(e) => setTextSettings({ ...textSettings, content: e.target.value })}
                     placeholder="Enter text..."
                     className="w-full px-3 py-2 border rounded resize-none"
                     rows="3"
@@ -351,7 +366,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
                   <input
                     type="range"
                     value={textSettings.size}
-                    onChange={(e) => setTextSettings({...textSettings, size: Number(e.target.value)})}
+                    onChange={(e) => setTextSettings({ ...textSettings, size: Number(e.target.value) })}
                     min="8"
                     max="72"
                     className="w-full"
@@ -362,19 +377,19 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
                   <input
                     type="color"
                     value={textSettings.color}
-                    onChange={(e) => setTextSettings({...textSettings, color: e.target.value})}
+                    onChange={(e) => setTextSettings({ ...textSettings, color: e.target.value })}
                     className="w-full h-10 rounded border"
                   />
                 </div>
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => setTextSettings({...textSettings, bold: !textSettings.bold})}
+                    onClick={() => setTextSettings({ ...textSettings, bold: !textSettings.bold })}
                     className={`flex-1 px-3 py-2 rounded font-bold ${textSettings.bold ? 'bg-blue-600 text-white' : 'bg-white border'}`}
                   >
                     B
                   </button>
                   <button
-                    onClick={() => setTextSettings({...textSettings, italic: !textSettings.italic})}
+                    onClick={() => setTextSettings({ ...textSettings, italic: !textSettings.italic })}
                     className={`flex-1 px-3 py-2 rounded italic ${textSettings.italic ? 'bg-blue-600 text-white' : 'bg-white border'}`}
                   >
                     I
@@ -391,7 +406,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
                   <input
                     type="color"
                     value={shapeSettings.fillColor}
-                    onChange={(e) => setShapeSettings({...shapeSettings, fillColor: e.target.value})}
+                    onChange={(e) => setShapeSettings({ ...shapeSettings, fillColor: e.target.value })}
                     className="w-full h-10 rounded border"
                   />
                 </div>
@@ -400,7 +415,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
                   <input
                     type="color"
                     value={shapeSettings.borderColor}
-                    onChange={(e) => setShapeSettings({...shapeSettings, borderColor: e.target.value})}
+                    onChange={(e) => setShapeSettings({ ...shapeSettings, borderColor: e.target.value })}
                     className="w-full h-10 rounded border"
                   />
                 </div>
@@ -409,7 +424,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
                   <input
                     type="range"
                     value={shapeSettings.opacity}
-                    onChange={(e) => setShapeSettings({...shapeSettings, opacity: Number(e.target.value)})}
+                    onChange={(e) => setShapeSettings({ ...shapeSettings, opacity: Number(e.target.value) })}
                     min="0"
                     max="1"
                     step="0.1"
@@ -421,7 +436,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
                   <input
                     type="range"
                     value={shapeSettings.borderWidth}
-                    onChange={(e) => setShapeSettings({...shapeSettings, borderWidth: Number(e.target.value)})}
+                    onChange={(e) => setShapeSettings({ ...shapeSettings, borderWidth: Number(e.target.value) })}
                     min="0"
                     max="10"
                     className="w-full"
@@ -434,7 +449,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
             {selectedElement && (
               <div className="mt-6 pt-6 border-t">
                 <h4 className="font-semibold mb-4 text-gray-900">Edit Selected</h4>
-                
+
                 {selectedElement.type === 'text' && (() => {
                   const text = texts.find(t => t.id === selectedElement.id);
                   if (!text) return null;
@@ -463,7 +478,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
                     </div>
                   );
                 })()}
-                
+
                 {selectedElement.type === 'image' && (() => {
                   const image = images.find(i => i.id === selectedElement.id);
                   if (!image) return null;
@@ -494,7 +509,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
                     </div>
                   );
                 })()}
-                
+
                 {selectedElement.type === 'shape' && (() => {
                   const shape = shapes.find(s => s.id === selectedElement.id);
                   if (!shape) return null;
@@ -569,32 +584,51 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
           {/* PDF Canvas */}
           <div className="flex-1 overflow-auto p-4 bg-gray-100">
             <div className="flex flex-col items-center">
-              <div 
-                className="relative bg-white shadow-lg" 
+              <div
+                className="relative bg-white shadow-lg"
                 onClick={handleCanvasClick}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
                 style={{ cursor: tool === 'select' ? 'default' : 'crosshair' }}
               >
-                <Document
-                  file={file}
-                  onLoadSuccess={onDocumentLoadSuccess}
-                  loading={
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                      <p className="mt-4 text-gray-600">Loading PDF...</p>
-                    </div>
-                  }
-                >
-                  <Page
-                    pageNumber={currentPage}
-                    scale={scale}
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                  />
-                </Document>
-                
+                {loadError ? (
+                  <div className="text-center py-8 bg-red-50 rounded-lg p-6">
+                    <p className="text-red-600 font-semibold mb-2">Error Loading PDF</p>
+                    <p className="text-gray-600 text-sm">{loadError}</p>
+                    <button
+                      onClick={onCancel}
+                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      Go Back
+                    </button>
+                  </div>
+                ) : fileUrl ? (
+                  <Document
+                    file={fileUrl}
+                    onLoadSuccess={onDocumentLoadSuccess}
+                    onLoadError={onDocumentLoadError}
+                    loading={
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                        <p className="mt-4 text-gray-600">Loading PDF...</p>
+                      </div>
+                    }
+                  >
+                    <Page
+                      pageNumber={currentPage}
+                      scale={scale}
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
+                    />
+                  </Document>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Preparing PDF...</p>
+                  </div>
+                )}
+
                 {/* Overlay for showing edits */}
                 <div className="absolute inset-0 pointer-events-none">
                   {texts.filter(t => t.page === currentPage - 1).map((t) => (
@@ -668,6 +702,26 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
                       }}
                     />
                   ))}
+
+                  {/* Watermark Preview */}
+                  {watermark && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: `translate(-50%, -50%) rotate(${watermark.rotation || 45}deg)`,
+                        fontSize: (watermark.size || 50) * scale,
+                        color: `rgba(${(watermark.color?.r || 0.5) * 255}, ${(watermark.color?.g || 0.5) * 255}, ${(watermark.color?.b || 0.5) * 255}, ${watermark.opacity || 0.3})`,
+                        fontWeight: 'bold',
+                        pointerEvents: 'none',
+                        whiteSpace: 'nowrap',
+                        userSelect: 'none'
+                      }}
+                    >
+                      {watermark.text}
+                    </div>
+                  )}
                 </div>
               </div>
 

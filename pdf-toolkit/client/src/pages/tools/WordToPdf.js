@@ -3,8 +3,10 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
+import AdBanner from '../../components/AdBanner';
 import { conversionAPI } from '../../services/api';
 import { FiDownload, FiLoader, FiFileText } from 'react-icons/fi';
+import { GridPattern } from '../../components/GridPattern';
 
 const WordToPdf = () => {
   const { user } = useAuth();
@@ -27,7 +29,7 @@ const WordToPdf = () => {
     try {
       const data = await conversionAPI.convertFile('word-to-pdf', formData);
       setConvertedFile(data);
-      
+
       if (!user || !user.isPremium) {
         setShowAdModal(true);
       } else {
@@ -40,9 +42,23 @@ const WordToPdf = () => {
     }
   };
 
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="relative min-h-screen bg-secondary-50">
+      {/* Grid Pattern Background */}
+      <GridPattern
+        className="absolute inset-0 stroke-primary-200/20 [mask-image:radial-gradient(white,transparent_85%)]"
+        width={60}
+        height={60}
+      />
+      {/* Header Ad Banner */}
+      {(!user || !user.isPremium) && (
+        <div className="bg-gray-100 py-2">
+          <div className="max-w-4xl mx-auto px-4">
+            <AdBanner />
+          </div>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto px-4 py-12">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Word to PDF Converter</h1>
@@ -51,14 +67,14 @@ const WordToPdf = () => {
 
         <div className="bg-white rounded-lg shadow-lg p-8">
           <FileUploader
-            acceptedFiles={{ 
+            acceptedFiles={{
               'application/msword': ['.doc'],
               'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
             }}
             onFilesSelect={(files) => setSelectedFile(files[0])}
             maxFiles={1}
             maxSize={user?.isPremium ? 50 * 1024 * 1024 : 10 * 1024 * 1024}
-            selectedFiles={selectedFile ? [selectedFile] : []}
+
           />
 
           {selectedFile && (
@@ -136,6 +152,15 @@ const WordToPdf = () => {
           downloadUrl={conversionAPI.downloadFile(convertedFile.fileName)}
           fileName={convertedFile.fileName}
         />
+      )}
+
+      {/* Bottom Ad Banner */}
+      {(!user || !user.isPremium) && (
+        <div className="bg-gray-100 py-4">
+          <div className="max-w-4xl mx-auto px-4">
+            <AdBanner />
+          </div>
+        </div>
       )}
     </div>
   );

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FiFileText, FiTable, FiImage, FiCompass, FiLayers, FiScissors, FiEdit3, FiDownload, FiUpload, FiRefreshCw } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import AdBanner from '../components/AdBanner';
+import { GridPattern } from '../components/GridPattern';
 
 const Home = () => {
   const { isAuthenticated } = useAuth();
@@ -27,7 +28,13 @@ const Home = () => {
   ];
 
   return (
-    <div className="bg-white">
+    <div className="relative bg-secondary-50">
+      {/* Grid Pattern Background */}
+      <GridPattern
+        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+        width={60}
+        height={60}
+      />
       {/* Header Ad Banner for non-premium users */}
       {!isAuthenticated && (
         <div className="bg-gray-100 py-2">

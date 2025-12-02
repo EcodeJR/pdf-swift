@@ -25,7 +25,7 @@ const localStorage = multer.diskStorage({
 const createGridFsStorage = () => {
   return new GridFsStorage({
     url: process.env.MONGO_URI,
-    options: { useNewUrlParser: true, useUnifiedTopology: true },
+
     file: (req, file) => {
       return new Promise((resolve, reject) => {
         crypto.randomBytes(16, (err, buf) => {
@@ -40,8 +40,8 @@ const createGridFsStorage = () => {
               userId: req.user ? req.user._id : null,
               originalName: file.originalname,
               uploadDate: new Date(),
-              expiresAt: req.user && req.user.isPremium 
-                ? null 
+              expiresAt: req.user && req.user.isPremium
+                ? null
                 : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for free users
             }
           };

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { userAPI, conversionAPI } from '../services/api';
 import { FiDownload, FiTrash2, FiFileText, FiFolder, FiArrowRight, FiFilter } from 'react-icons/fi';
+import { GridPattern } from '../components/GridPattern';
 
 const MyFiles = () => {
   const [files, setFiles] = useState([]);
@@ -64,7 +65,12 @@ const MyFiles = () => {
   }
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="relative min-h-screen bg-secondary-50">
+      <GridPattern
+        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+        width={60}
+        height={60}
+      />
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-6 py-8">
@@ -110,7 +116,7 @@ const MyFiles = () => {
               <FiFilter className="w-5 h-5 text-gray-400" />
               <p className="text-caption text-gray-600">Showing {files.length} files</p>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {files.map((file) => (
                 <div

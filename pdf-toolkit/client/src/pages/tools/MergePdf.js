@@ -3,8 +3,10 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
+import AdBanner from '../../components/AdBanner';
 import { conversionAPI } from '../../services/api';
 import { FiDownload, FiLoader } from 'react-icons/fi';
+import { GridPattern } from '../../components/GridPattern';
 
 const MergePdf = () => {
   const { user } = useAuth();
@@ -27,7 +29,7 @@ const MergePdf = () => {
     try {
       const data = await conversionAPI.convertFile('merge-pdf', formData);
       setConvertedFile(data);
-      
+
       if (!user || !user.isPremium) {
         setShowAdModal(true);
       } else {
@@ -41,7 +43,22 @@ const MergePdf = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="relative min-h-screen bg-secondary-50">
+      {/* Grid Pattern Background */}
+      <GridPattern
+        className="absolute inset-0 stroke-primary-200/20 [mask-image:radial-gradient(white,transparent_85%)]"
+        width={60}
+        height={60}
+      />
+      {/* Header Ad Banner */}
+      {(!user || !user.isPremium) && (
+        <div className="bg-gray-100 py-2">
+          <div className="max-w-4xl mx-auto px-4">
+            <AdBanner />
+          </div>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto px-4 py-12">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Merge PDF Files</h1>
@@ -86,6 +103,28 @@ const MergePdf = () => {
             </div>
           )}
         </div>
+
+        {/* Features */}
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="font-semibold text-gray-900 mb-2">Preserve Quality</h3>
+            <p className="text-sm text-gray-600">
+              Maintains original PDF quality and formatting when merging
+            </p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="font-semibold text-gray-900 mb-2">Unlimited Pages</h3>
+            <p className="text-sm text-gray-600">
+              Merge PDFs with any number of pages into a single document
+            </p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="font-semibold text-gray-900 mb-2">Secure</h3>
+            <p className="text-sm text-gray-600">
+              Files are automatically deleted after 1 hour for your privacy
+            </p>
+          </div>
+        </div>
       </div>
 
       {showAdModal && convertedFile && (
@@ -96,6 +135,15 @@ const MergePdf = () => {
           downloadUrl={conversionAPI.downloadFile(convertedFile.fileName)}
           fileName={convertedFile.fileName}
         />
+      )}
+
+      {/* Bottom Ad Banner */}
+      {(!user || !user.isPremium) && (
+        <div className="bg-gray-100 py-4">
+          <div className="max-w-4xl mx-auto px-4">
+            <AdBanner />
+          </div>
+        </div>
       )}
     </div>
   );

@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
+import AdBanner from '../../components/AdBanner';
 import { conversionAPI } from '../../services/api';
 import { FiDownload, FiLoader, FiImage } from 'react-icons/fi';
 
@@ -27,7 +28,7 @@ const PdfToJpg = () => {
     try {
       const data = await conversionAPI.convertFile('pdf-to-jpg', formData);
       setConvertedFiles(data);
-      
+
       if (!user || !user.isPremium) {
         setShowAdModal(true);
       } else {
@@ -42,6 +43,15 @@ const PdfToJpg = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header Ad Banner */}
+      {(!user || !user.isPremium) && (
+        <div className="bg-gray-100 py-2">
+          <div className="max-w-4xl mx-auto px-4">
+            <AdBanner />
+          </div>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto px-4 py-12">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">PDF to JPG Converter</h1>
@@ -132,6 +142,15 @@ const PdfToJpg = () => {
           downloadUrl={conversionAPI.downloadFile(convertedFiles.fileName)}
           fileName={convertedFiles.fileName}
         />
+      )}
+
+      {/* Bottom Ad Banner */}
+      {(!user || !user.isPremium) && (
+        <div className="bg-gray-100 py-4">
+          <div className="max-w-4xl mx-auto px-4">
+            <AdBanner />
+          </div>
+        </div>
       )}
     </div>
   );

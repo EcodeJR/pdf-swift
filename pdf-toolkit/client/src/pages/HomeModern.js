@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FiFileText, FiTable, FiImage, FiMinimize2, FiLayers, FiScissors, FiEdit3, FiUpload, FiRefreshCw, FiZap, FiLock, FiStar, FiArrowRight } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
+import { GridPattern } from '../components/GridPattern';
 
 const HomeModern = () => {
   const { user } = useAuth();
@@ -20,21 +21,21 @@ const HomeModern = () => {
   ];
 
   const features = [
-    { 
-      title: 'Lightning Fast', 
-      description: 'Process your PDFs in seconds with our optimized conversion engine', 
+    {
+      title: 'Lightning Fast',
+      description: 'Process your PDFs in seconds with our optimized conversion engine',
       icon: FiZap,
       gradient: 'from-primary to-accent-purple'
     },
-    { 
-      title: 'Bank-Level Security', 
-      description: 'Your files are encrypted and automatically deleted after 1 hour', 
+    {
+      title: 'Bank-Level Security',
+      description: 'Your files are encrypted and automatically deleted after 1 hour',
       icon: FiLock,
       gradient: 'from-accent-blue to-primary'
     },
-    { 
-      title: 'Unlimited Power', 
-      description: 'Premium users get unlimited conversions with priority processing', 
+    {
+      title: 'Unlimited Power',
+      description: 'Premium users get unlimited conversions with priority processing',
       icon: FiStar,
       gradient: 'from-accent-purple to-primary-600'
     },
@@ -48,9 +49,19 @@ const HomeModern = () => {
   ];
 
   return (
-    <div className="bg-white">
+    <div className="relative min-h-screen bg-secondary-50">
+      <GridPattern
+        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+        width={60}
+        height={60}
+      />
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary to-accent-purple">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary to-primary-500">
+        <GridPattern
+          className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+          width={60}
+          height={60}
+        />
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -112,7 +123,7 @@ const HomeModern = () => {
         {/* Wave Divider */}
         <div className="absolute bottom-0 left-0 right-0">
           <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="white"/>
+            <path d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="white" />
           </svg>
         </div>
       </section>

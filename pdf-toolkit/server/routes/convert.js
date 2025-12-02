@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { localUpload } = require('../middleware/upload');
 const { optionalAuth } = require('../middleware/auth');
-const { guestRateLimiter, checkUserConversionLimit } = require('../middleware/rateLimiter');
+const { enhancedRateLimiter, checkUserConversionLimit } = require('../middleware/rateLimiter');
 const {
   pdfToWord,
   pdfToExcel,
@@ -20,7 +20,7 @@ const {
 
 // Apply optional auth and rate limiting to all conversion routes
 router.use(optionalAuth);
-router.use(guestRateLimiter);
+router.use(enhancedRateLimiter());
 router.use(checkUserConversionLimit);
 
 // Conversion routes

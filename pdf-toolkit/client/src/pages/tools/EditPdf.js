@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'react-toastify';
+import { useAuth } from '../../context/AuthContext';
 import PdfEditorAdvanced from '../../components/PdfEditorAdvanced';
+import VideoAdModal from '../../components/VideoAdModal';
+import AdBanner from '../../components/AdBanner';
 import api from '../../services/api';
 import { FiUpload, FiEdit3, FiCheckCircle } from 'react-icons/fi';
 
 const EditPdf = () => {
+  const { user } = useAuth();
   const [selectedFile, setSelectedFile] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [showAdModal, setShowAdModal] = useState(false);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -37,7 +42,7 @@ const EditPdf = () => {
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      
+
       // Add edits to form data
       if (edits.texts && edits.texts.length > 0) {
         formData.append('texts', JSON.stringify(edits.texts));
@@ -60,7 +65,13 @@ const EditPdf = () => {
 
       setResult(response.data);
       setShowEditor(false);
-      toast.success('PDF edited successfully!');
+
+      // Show ad for free users
+      if (!user || !user.isPremium) {
+        setShowAdModal(true);
+      } else {
+        toast.success('PDF edited successfully!');
+      }
     } catch (error) {
       console.error('Edit error:', error);
       toast.error(error.response?.data?.message || 'Failed to edit PDF');
@@ -83,6 +94,15 @@ const EditPdf = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      {/* Header Ad Banner */}
+      {(!user || !user.isPremium) && (
+        <div className="bg-gray-100 py-2">
+          <div className="max-w-4xl mx-auto px-4">
+            <AdBanner />
+          </div>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -102,11 +122,10 @@ const EditPdf = () => {
               {/* File Upload */}
               <div
                 {...getRootProps()}
-                className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${
-                  isDragActive
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-300 hover:border-blue-400'
-                }`}
+                className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${isDragActive
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-300 hover:border-blue-400'
+                  }`}
               >
                 <input {...getInputProps()} />
                 <FiUpload className="mx-auto text-5xl text-gray-400 mb-4" />
@@ -274,6 +293,26 @@ const EditPdf = () => {
           onSave={handleSaveEdits}
           onCancel={() => setShowEditor(false)}
         />
+      )}
+
+      {/* Video Ad Modal */}
+      {showAdModal && result && (
+        <VideoAdModal
+          isOpen={showAdModal}
+          onClose={() => setShowAdModal(false)}
+          onAdComplete={() => toast.success('PDF edited successfully!')}
+          downloadUrl={result.downloadUrl}
+          fileName={result.fileName}
+        />
+      )}
+
+      {/* Bottom Ad Banner */}
+      {(!user || !user.isPremium) && (
+        <div className="bg-gray-100 py-4">
+          <div className="max-w-4xl mx-auto px-4">
+            <AdBanner />
+          </div>
+        </div>
       )}
     </div>
   );

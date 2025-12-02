@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { userAPI } from '../services/api';
 import { FiStar, FiZap, FiClock, FiHardDrive, FiFileText, FiTrendingUp, FiArrowRight } from 'react-icons/fi';
+import { GridPattern } from '../components/GridPattern';
 
 const Dashboard = () => {
   const { user, refreshUser } = useAuth();
@@ -35,7 +36,13 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="relative min-h-screen bg-secondary-50">
+      {/* Grid Pattern Background */}
+      <GridPattern
+        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+        width={60}
+        height={60}
+      />
       {/* Gradient Header */}
       <div className="bg-gradient-to-br from-primary-600 to-primary text-white py-16">
         <div className="max-w-7xl mx-auto px-6">
@@ -125,7 +132,7 @@ const Dashboard = () => {
                 {!user?.isPremium && (
                   <div className="mt-4">
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
+                      <div
                         className="bg-primary h-2 rounded-full transition-all"
                         style={{ width: `${((stats?.conversionsThisHour || 0) / 5) * 100}%` }}
                       ></div>

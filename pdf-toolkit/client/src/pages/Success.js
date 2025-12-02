@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FiCheck } from 'react-icons/fi';
+import { GridPattern } from '../components/GridPattern';
 
 const Success = () => {
   const { refreshUser } = useAuth();
@@ -15,6 +16,11 @@ const Success = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
+      <GridPattern
+        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+        width={60}
+        height={60}
+      />
       <div className="max-w-md w-full text-center">
         <div className="bg-white rounded-lg shadow-xl p-8">
           {/* Success Icon */}

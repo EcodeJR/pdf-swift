@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { FiMail, FiLock, FiArrowRight, FiCheck } from 'react-icons/fi';
+import { GridPattern } from '../components/GridPattern';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -13,7 +14,7 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       toast.error('Please fill in all fields');
       return;
@@ -39,7 +40,13 @@ const Login = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-50">
+    <div className="relative min-h-screen bg-secondary-50">
+      {/* Grid Pattern Background */}
+      <GridPattern
+        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+        width={60}
+        height={60}
+      />
       <div className="min-h-screen flex">
         {/* Left Side - Form */}
         <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-20 xl:px-24">
@@ -148,6 +155,11 @@ const Login = () => {
               backgroundSize: '40px 40px'
             }}></div>
           </div>
+          <GridPattern
+            className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+            width={60}
+            height={60}
+          />
 
           <div className="relative z-10 max-w-md">
             <h3 className="text-3xl font-bold mb-6">

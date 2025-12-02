@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { paymentAPI, userAPI } from '../services/api';
 import { FiUser, FiLock, FiStar, FiToggleRight, FiToggleLeft, FiAlertCircle, FiSave } from 'react-icons/fi';
+import { GridPattern } from '../components/GridPattern';
 
 const Settings = () => {
   const { user, refreshUser } = useAuth();
@@ -60,6 +61,11 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-light">
+      <GridPattern
+        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+        width={60}
+        height={60}
+      />
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-6 py-8">
@@ -71,7 +77,7 @@ const Settings = () => {
       {/* Tabs */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex space-x-4 border-b mb-8 overflow-x-auto">
-          <button 
+          <button
             onClick={() => setActiveTab('profile')}
             className={`pb-4 px-2 font-semibold whitespace-nowrap transition-colors ${activeTab === 'profile' ? 'border-b-2 border-primary text-primary' : 'text-gray-600 hover:text-gray-900'}`}
           >
@@ -80,7 +86,7 @@ const Settings = () => {
               <span>Profile</span>
             </div>
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('security')}
             className={`pb-4 px-2 font-semibold whitespace-nowrap transition-colors ${activeTab === 'security' ? 'border-b-2 border-primary text-primary' : 'text-gray-600 hover:text-gray-900'}`}
           >
@@ -89,7 +95,7 @@ const Settings = () => {
               <span>Security</span>
             </div>
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('preferences')}
             className={`pb-4 px-2 font-semibold whitespace-nowrap transition-colors ${activeTab === 'preferences' ? 'border-b-2 border-primary text-primary' : 'text-gray-600 hover:text-gray-900'}`}
           >
@@ -98,7 +104,7 @@ const Settings = () => {
               <span>Preferences</span>
             </div>
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('subscription')}
             className={`pb-4 px-2 font-semibold whitespace-nowrap transition-colors ${activeTab === 'subscription' ? 'border-b-2 border-primary text-primary' : 'text-gray-600 hover:text-gray-900'}`}
           >
