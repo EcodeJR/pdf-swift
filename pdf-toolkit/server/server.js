@@ -24,6 +24,7 @@ const paymentRoutes = require('./routes/payment');
 const userRoutes = require('./routes/user');
 const jobRoutes = require('./routes/jobs');
 const ocrRoutes = require('./routes/ocr');
+const contactRoutes = require('./routes/contact');
 
 // Initialize Express
 const app = express();
@@ -136,6 +137,7 @@ app.get('/', (req, res) => {
       user: '/api/user',
       jobs: '/api/jobs',
       ocr: '/api/ocr',
+      contact: '/api/contact'
     }
   });
 });
@@ -147,6 +149,7 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/ocr', ocrRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

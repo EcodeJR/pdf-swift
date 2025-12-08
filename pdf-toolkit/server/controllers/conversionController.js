@@ -1,7 +1,7 @@
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const { PDFDocument, rgb } = require('pdf-lib');
+const { PDFDocument, rgb, StandardFonts, degrees } = require('pdf-lib');
 const pdfParse = require('pdf-parse');
 const { Document, Paragraph, TextRun, Packer } = require('docx');
 const xlsx = require('xlsx');
@@ -13,6 +13,7 @@ const execAsync = require('util').promisify(exec);
 // LibreOffice path for Windows
 const LIBREOFFICE_PATH = process.env.LIBREOFFICE_PATH || 'C:\\Program Files\\LibreOffice\\program\\soffice.exe';
 const Conversion = require('../models/Conversion');
+const User = require('../models/User');
 const { lockFileWithTimeout, unlockFile } = require('../utils/fileManager');
 const { streamFromGridFS } = require('../utils/gridfsHelper');
 const { handleFileStorage, cleanupFile, validateStorageRequest, getStorageMetadata } = require('../utils/conversionHelper');
@@ -33,6 +34,31 @@ const trackConversion = async (userId, ipAddress, conversionType, originalFileNa
       gridFsFileId,
       expiresAt
     });
+
+    // Update User statistics if authenticated
+    if (userId) {
+      console.log(`[TrackConversion] Attempting to update stats for user ${userId}`);
+      try {
+        const user = await User.findById(userId);
+        if (user) {
+          user.totalConversions = (user.totalConversions || 0) + 1;
+          user.conversionsThisMonth = (user.conversionsThisMonth || 0) + 1;
+          // NOTE: conversionsThisHour is already incremented by the rate limiter middleware
+          // Do NOT increment it here to avoid double-counting
+
+          // If file was stored in GridFS, add to filesStored
+          if (gridFsFileId) {
+            user.filesStored.push(gridFsFileId);
+          }
+          await user.save();
+          console.log(`[TrackConversion] Successfully updated stats. Total: ${user.totalConversions}`);
+        } else {
+          console.warn(`[TrackConversion] User ${userId} not found`);
+        }
+      } catch (updateError) {
+        console.error('[TrackConversion] Error updating user stats:', updateError);
+      }
+    }
   } catch (error) {
     console.error('Error tracking conversion:', error);
   }
@@ -380,18 +406,26 @@ exports.jpgToPdf = async (req, res) => {
     for (const file of req.files) {
       let imageBytes = await fs.readFile(file.path);
 
-      // Resize if needed
-      const resized = await sharp(imageBytes)
-        .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 90 })
-        .toBuffer();
-
+      // Resize if needed, but preserve format
+      let resized;
       let image;
+
       if (file.mimetype === 'image/png') {
+        // Keep PNG format
+        resized = await sharp(imageBytes)
+          .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+          .png({ quality: 90 })
+          .toBuffer();
         image = await pdfDoc.embedPng(resized);
       } else {
+        // Convert to JPEG for JPG, JPEG, and other formats
+        resized = await sharp(imageBytes)
+          .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+          .jpeg({ quality: 90 })
+          .toBuffer();
         image = await pdfDoc.embedJpg(resized);
       }
+
 
       const page = pdfDoc.addPage([image.width, image.height]);
       page.drawImage(image, {
@@ -776,6 +810,11 @@ exports.editPdf = async (req, res) => {
     let rotate = null;
 
     try {
+      // Log raw request body for debugging
+      console.log('Raw request body keys:', Object.keys(req.body));
+      console.log('Raw texts:', req.body.texts);
+      console.log('Raw images:', req.body.images);
+
       texts = typeof req.body.texts === 'string' ? JSON.parse(req.body.texts) : (req.body.texts || []);
       images = typeof req.body.images === 'string' ? JSON.parse(req.body.images) : (req.body.images || []);
       annotations = typeof req.body.annotations === 'string' ? JSON.parse(req.body.annotations) : (req.body.annotations || []);
@@ -807,6 +846,7 @@ exports.editPdf = async (req, res) => {
       }
 
       const page = pages[textItem.page || 0];
+      const { height } = page.getSize(); // Get actual page height
       const fontSize = textItem.size || 12;
 
       // Parse color - handle both object {r, g, b} and string formats
@@ -818,9 +858,27 @@ exports.editPdf = async (req, res) => {
         textColor = rgb(0, 0, 0); // Default black
       }
 
-      page.drawText(textItem.text, {
+      // Remove emojis and special characters that WinAnsi can't encode
+      // WinAnsi only supports characters in the range 0x20-0xFF
+      const cleanText = textItem.text.replace(/[^\x20-\xFF]/g, '');
+
+      if (cleanText.length === 0) {
+        console.warn('Text contains only unsupported characters (emojis/special chars), skipping');
+        continue;
+      }
+
+      if (cleanText !== textItem.text) {
+        console.warn('Removed unsupported characters from text:', {
+          original: textItem.text,
+          cleaned: cleanText
+        });
+      }
+
+      // Convert top-left coordinates (frontend) to bottom-left (pdf-lib)
+      // Subtract y from height to flip coordinate system
+      page.drawText(cleanText, {
         x: textItem.x,
-        y: textItem.y,
+        y: height - textItem.y - fontSize, // Adjust for font size as drawText uses baseline
         size: fontSize,
         color: textColor
       });
@@ -828,35 +886,86 @@ exports.editPdf = async (req, res) => {
 
     // Add image annotations
     for (const imgItem of images) {
+      console.log('Processing image:', { page: imgItem.page, x: imgItem.x, y: imgItem.y, hasData: !!imgItem.imageData });
+
       const page = pages[imgItem.page || 0];
+      const { height } = page.getSize();
 
       // If image is base64 or URL, embed it
       if (imgItem.imageData) {
         let image;
-        if (imgItem.imageData.startsWith('data:image/png')) {
-          const base64 = imgItem.imageData.split(',')[1];
-          const imageBytes = Buffer.from(base64, 'base64');
-          image = await pdfDoc.embedPng(imageBytes);
-        } else if (imgItem.imageData.startsWith('data:image/jpeg') || imgItem.imageData.startsWith('data:image/jpg')) {
-          const base64 = imgItem.imageData.split(',')[1];
-          const imageBytes = Buffer.from(base64, 'base64');
-          image = await pdfDoc.embedJpg(imageBytes);
-        }
+        try {
+          // Robustly handle data URL prefix
+          const matches = imgItem.imageData.match(/^data:image\/([a-zA-Z+]+);base64,(.+)$/);
 
-        if (image) {
-          page.drawImage(image, {
-            x: imgItem.x,
-            y: imgItem.y,
-            width: imgItem.width || 100,
-            height: imgItem.height || 100
-          });
+          if (matches && matches.length === 3) {
+            const imageType = matches[1].toLowerCase();
+            const base64Data = matches[2];
+            console.log(`Embedding ${imageType} image...`);
+            const imageBytes = Buffer.from(base64Data, 'base64');
+
+            if (imageType === 'png') {
+              image = await pdfDoc.embedPng(imageBytes);
+            } else if (imageType === 'jpeg' || imageType === 'jpg') {
+              image = await pdfDoc.embedJpg(imageBytes);
+            } else {
+              console.warn(`Unsupported image type for embedding: ${imageType}`);
+            }
+          } else {
+            // Fallback: try to detect type from data itself
+            console.warn('Invalid data URL format, attempting fallback detection');
+
+            // Try to extract base64 data even if format is wrong
+            let base64Data = imgItem.imageData;
+            if (base64Data.includes('base64,')) {
+              base64Data = base64Data.split('base64,')[1];
+            }
+
+            try {
+              const imageBytes = Buffer.from(base64Data, 'base64');
+
+              // Try PNG first (most common)
+              try {
+                image = await pdfDoc.embedPng(imageBytes);
+                console.log('Successfully embedded as PNG (fallback)');
+              } catch (pngError) {
+                // If PNG fails, try JPG
+                try {
+                  image = await pdfDoc.embedJpg(imageBytes);
+                  console.log('Successfully embedded as JPG (fallback)');
+                } catch (jpgError) {
+                  console.error('Failed to embed as both PNG and JPG:', jpgError.message);
+                }
+              }
+            } catch (decodeError) {
+              console.error('Failed to decode base64 image data:', decodeError.message);
+            }
+          }
+
+          if (image) {
+            console.log(`Drawing image at x:${imgItem.x}, y:${height - imgItem.y - (imgItem.height || 100)}`);
+            page.drawImage(image, {
+              x: imgItem.x,
+              y: height - imgItem.y - (imgItem.height || 100), // Adjust for image height (draws from bottom-left)
+              width: imgItem.width || 100,
+              height: imgItem.height || 100
+            });
+            console.log('Image drawn successfully');
+          } else {
+            console.error('Failed to create image object');
+          }
+        } catch (imgError) {
+          console.error('Error embedding image:', imgError);
         }
+      } else {
+        console.warn('Image item has no imageData');
       }
     }
 
     // Add shape annotations (rectangles, highlights)
     for (const annotation of annotations) {
       const page = pages[annotation.page || 0];
+      const { height } = page.getSize();
 
       // Parse color using rgb() function
       let annotationColor;
@@ -872,18 +981,18 @@ exports.editPdf = async (req, res) => {
       if (annotation.type === 'rectangle' || annotation.type === 'highlight') {
         page.drawRectangle({
           x: annotation.x,
-          y: annotation.y,
+          y: height - annotation.y - (annotation.height || 0), // Adjust for height (draws from bottom-left)
           width: annotation.width,
           height: annotation.height,
           color: annotationColor,
           opacity: opacity,
-          borderColor: annotation.borderColor || color,
+          borderColor: annotation.borderColor || undefined,
           borderWidth: annotation.borderWidth || 1
         });
       } else if (annotation.type === 'line') {
         page.drawLine({
-          start: { x: annotation.x, y: annotation.y },
-          end: { x: annotation.x2, y: annotation.y2 },
+          start: { x: annotation.x, y: height - annotation.y },
+          end: { x: annotation.x2, y: height - annotation.y2 },
           thickness: annotation.thickness || 2,
           color: annotationColor
         });
@@ -903,6 +1012,11 @@ exports.editPdf = async (req, res) => {
         watermarkColor = rgb(0.5, 0.5, 0.5); // Default gray
       }
 
+      // Extract rotation angle from object or use directly
+      const rotationAngle = typeof watermark.rotation === 'object'
+        ? (watermark.rotation.angle || 45)
+        : (watermark.rotation || 45);
+
       pages.forEach(page => {
         const { width, height } = page.getSize();
         page.drawText(watermark.text, {
@@ -911,7 +1025,7 @@ exports.editPdf = async (req, res) => {
           size: watermark.size || 50,
           color: watermarkColor,
           opacity: watermark.opacity || 0.3,
-          rotate: { angle: watermark.rotation || 45 }
+          rotate: degrees(rotationAngle)
         });
       });
     }

@@ -42,6 +42,18 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  totalConversions: {
+    type: Number,
+    default: 0
+  },
+  conversionsThisMonth: {
+    type: Number,
+    default: 0
+  },
+  monthResetTime: {
+    type: Date,
+    default: Date.now
+  },
   filesStored: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'fs.files'

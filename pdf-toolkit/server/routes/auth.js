@@ -222,4 +222,49 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+// @route   GET /api/auth/stats
+// @desc    Get user statistics for dashboard
+// @access  Private
+router.get('/stats', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    // Check and reset hourly counter if needed
+    const currentTime = new Date();
+    const hoursSinceReset = (currentTime - user.hourResetTime) / (1000 * 60 * 60);
+
+    // Reset counter if more than 1 hour has passed
+    if (hoursSinceReset >= 1 || !user.hourResetTime) {
+      console.log(`🔄 Resetting hourly counter for user ${user._id} (${hoursSinceReset.toFixed(2)} hours since last reset)`);
+      user.conversionsThisHour = 0;
+      user.hourResetTime = currentTime;
+      await user.save();
+    }
+
+    // Check if month needs to be reset
+    const now = new Date();
+    const monthResetTime = new Date(user.monthResetTime);
+    const monthsSinceReset = (now.getFullYear() - monthResetTime.getFullYear()) * 12 + (now.getMonth() - monthResetTime.getMonth());
+
+    if (monthsSinceReset >= 1) {
+      // Reset monthly counter
+      user.conversionsThisMonth = 0;
+      user.monthResetTime = now;
+      await user.save();
+    }
+
+    res.json({
+      totalConversions: user.totalConversions || 0,
+      conversionsThisMonth: user.conversionsThisMonth || 0,
+      conversionsThisHour: user.conversionsThisHour || 0,
+      filesStored: user.filesStored?.length || 0,
+      isPremium: user.isPremium,
+      accountType: user.isPremium ? 'Premium' : 'Free'
+    });
+  } catch (error) {
+    console.error('Get stats error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

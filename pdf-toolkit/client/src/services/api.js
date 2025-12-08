@@ -30,22 +30,22 @@ export const authAPI = {
     const response = await api.post('/auth/register', { email, password, name });
     return response.data;
   },
-  
+
   login: async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
     return response.data;
   },
-  
+
   getProfile: async () => {
     const response = await api.get('/auth/me');
     return response.data;
   },
-  
+
   forgotPassword: async (email) => {
     const response = await api.post('/auth/forgot-password', { email });
     return response.data;
   },
-  
+
   resetPassword: async (token, newPassword) => {
     const response = await api.post('/auth/reset-password', { token, newPassword });
     return response.data;
@@ -70,7 +70,7 @@ export const conversionAPI = {
     });
     return response.data;
   },
-  
+
   downloadFile: (filename) => {
     return `${API_URL}/convert/download/${filename}`;
   },
@@ -82,12 +82,12 @@ export const paymentAPI = {
     const response = await api.post('/payment/create-checkout-session');
     return response.data;
   },
-  
+
   cancelSubscription: async () => {
     const response = await api.post('/payment/cancel-subscription');
     return response.data;
   },
-  
+
   getSubscriptionStatus: async () => {
     const response = await api.get('/payment/subscription-status');
     return response.data;
@@ -97,20 +97,20 @@ export const paymentAPI = {
 // User API
 export const userAPI = {
   getStats: async () => {
-    const response = await api.get('/user/stats');
+    const response = await api.get('/auth/stats');
     return response.data;
   },
-  
+
   getFiles: async () => {
     const response = await api.get('/user/files');
     return response.data;
   },
-  
+
   deleteFile: async (fileId) => {
     const response = await api.delete(`/user/files/${fileId}`);
     return response.data;
   },
-  
+
   getConversionHistory: async (page = 1, limit = 20) => {
     const response = await api.get(`/user/conversion-history?page=${page}&limit=${limit}`);
     return response.data;

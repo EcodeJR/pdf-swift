@@ -3,6 +3,7 @@ const router = express.Router();
 const { localUpload } = require('../middleware/upload');
 const { optionalAuth } = require('../middleware/auth');
 const { enhancedRateLimiter, checkUserConversionLimit } = require('../middleware/rateLimiter');
+const redisClient = require('../config/redis');
 const {
   pdfToWord,
   pdfToExcel,
@@ -18,10 +19,25 @@ const {
   downloadCloudFile
 } = require('../controllers/conversionController');
 
-// Apply optional auth and rate limiting to all conversion routes
+// Apply optional auth to all conversion routes
 router.use(optionalAuth);
-router.use(enhancedRateLimiter());
-router.use(checkUserConversionLimit);
+
+// Smart rate limiter: Use Redis if available, fallback to database
+router.use((req, res, next) => {
+  // Check Redis connection status on EVERY request (not just at startup)
+  const isRedisReady = redisClient.status === 'ready' && redisClient.isConnected && redisClient.isConnected();
+
+  if (isRedisReady) {
+    // Use fast Redis-based rate limiting
+    console.log('📊 Using Redis for rate limiting');
+    enhancedRateLimiter()(req, res, next);
+  } else {
+    // Fallback to database-based rate limiting
+    console.log('📊 Using database for rate limiting (Redis status:', redisClient.status, ')');
+    checkUserConversionLimit(req, res, next);
+  }
+});
+
 
 // Conversion routes
 router.post('/pdf-to-word', localUpload.single('file'), pdfToWord);

@@ -56,7 +56,7 @@ const HomeModern = () => {
         height={60}
       />
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary to-primary-500">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary to-primary-500 z-10">
         <GridPattern
           className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
           width={60}

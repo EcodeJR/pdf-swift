@@ -67,7 +67,7 @@ const Settings = () => {
         height={60}
       />
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-white border-b relative z-10">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <h1 className="text-hero font-bold">Settings</h1>
           <p className="text-body-sm text-gray-600 mt-1">Manage your account settings</p>
@@ -75,7 +75,7 @@ const Settings = () => {
       </div>
 
       {/* Tabs */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-6 py-8 relative z-10">
         <div className="flex space-x-4 border-b mb-8 overflow-x-auto">
           <button
             onClick={() => setActiveTab('profile')}

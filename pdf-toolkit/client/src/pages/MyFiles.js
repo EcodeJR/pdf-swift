@@ -2,15 +2,24 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { userAPI, conversionAPI } from '../services/api';
-import { FiDownload, FiTrash2, FiFileText, FiFolder, FiArrowRight, FiFilter } from 'react-icons/fi';
+import { useAuth } from '../context/AuthContext';
+import VideoAdModal from '../components/VideoAdModal';
+import { FiDownload, FiTrash2, FiFileText, FiFolder, FiArrowRight, FiFilter, FiClock, FiCloud } from 'react-icons/fi';
 import { GridPattern } from '../components/GridPattern';
 
 const MyFiles = () => {
+  const { user } = useAuth();
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAdModal, setShowAdModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   useEffect(() => {
     fetchFiles();
+
+    // Refresh files every minute to update expiry times
+    const interval = setInterval(fetchFiles, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchFiles = async () => {
@@ -38,6 +47,17 @@ const MyFiles = () => {
     }
   };
 
+  const handleDownload = (file) => {
+    // Show ad for free users
+    if (!user?.isPremium) {
+      setSelectedFile(file);
+      setShowAdModal(true);
+    } else {
+      // Premium users download directly
+      window.location.href = conversionAPI.downloadFile(file.outputFileName);
+    }
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -54,6 +74,14 @@ const MyFiles = () => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const formatTimeRemaining = (minutes) => {
+    if (minutes < 1) return 'Less than 1 min';
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
   if (loading) {
@@ -93,7 +121,7 @@ const MyFiles = () => {
       </div>
 
       {/* Content */}
-      <div className="section">
+      <div className="section relative z-10">
         {files.length === 0 ? (
           // Empty State
           <div className="card text-center py-16">
@@ -128,6 +156,23 @@ const MyFiles = () => {
                     <FiFileText className="w-12 h-12 text-primary" />
                   </div>
 
+                  {/* Storage Type Badge */}
+                  <div className="mb-3">
+                    {file.storageType === 'temporary' ? (
+                      <div className="flex items-center space-x-1">
+                        <FiClock className={`w-4 h-4 ${file.expiresIn < 10 ? 'text-red-600' : 'text-orange-600'}`} />
+                        <span className={`text-xs font-semibold ${file.expiresIn < 10 ? 'text-red-600' : 'text-orange-600'}`}>
+                          Expires in {formatTimeRemaining(file.expiresIn)}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-1">
+                        <FiCloud className="w-4 h-4 text-green-600" />
+                        <span className="text-xs font-semibold text-green-600">Permanent</span>
+                      </div>
+                    )}
+                  </div>
+
                   {/* File Info */}
                   <h3 className="font-semibold text-gray-900 truncate text-body-sm mb-1">
                     {file.outputFileName}
@@ -141,12 +186,12 @@ const MyFiles = () => {
 
                   {/* Actions (show on hover) */}
                   <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all">
-                    <a
-                      href={conversionAPI.downloadFile(file.outputFileName)}
+                    <button
+                      onClick={() => handleDownload(file)}
                       className="flex-1 btn-secondary py-2 px-3 text-xs flex items-center justify-center"
                     >
                       <FiDownload className="w-4 h-4 mr-1" /> Download
-                    </a>
+                    </button>
                     <button
                       onClick={(e) => {
                         e.preventDefault();
@@ -163,8 +208,24 @@ const MyFiles = () => {
           </div>
         )}
       </div>
+
+      {/* Video Ad Modal */}
+      {showAdModal && selectedFile && (
+        <VideoAdModal
+          isOpen={showAdModal}
+          onClose={() => setShowAdModal(false)}
+          onAdComplete={() => {
+            toast.success('Starting download...');
+            setShowAdModal(false);
+          }}
+          downloadUrl={conversionAPI.downloadFile(selectedFile.outputFileName)}
+          fileName={selectedFile.outputFileName}
+          adDuration={10}
+        />
+      )}
     </div>
   );
 };
 
 export default MyFiles;
+

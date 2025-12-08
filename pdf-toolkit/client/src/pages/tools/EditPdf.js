@@ -47,6 +47,9 @@ const EditPdf = () => {
       if (edits.texts && edits.texts.length > 0) {
         formData.append('texts', JSON.stringify(edits.texts));
       }
+      if (edits.images && edits.images.length > 0) {
+        formData.append('images', JSON.stringify(edits.images));
+      }
       if (edits.annotations && edits.annotations.length > 0) {
         formData.append('annotations', JSON.stringify(edits.annotations));
       }
@@ -80,9 +83,34 @@ const EditPdf = () => {
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (result?.downloadUrl) {
-      window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}${result.downloadUrl}`;
+      try {
+        // Construct absolute URL
+        let downloadUrl = result.downloadUrl;
+        if (!downloadUrl.startsWith('http')) {
+          const baseUrl = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
+          if (!downloadUrl.startsWith('/')) downloadUrl = `/${downloadUrl}`;
+          downloadUrl = `${baseUrl}${downloadUrl}`;
+        }
+
+        // Fetch as blob to bypass router completely
+        const response = await fetch(downloadUrl);
+        if (!response.ok) throw new Error('Download failed');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = result.fileName || 'edited.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Download error:', error);
+        toast.error('Failed to download file. Please try again.');
+      }
     }
   };
 

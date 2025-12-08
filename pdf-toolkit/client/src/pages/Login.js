@@ -47,7 +47,7 @@ const Login = () => {
         width={60}
         height={60}
       />
-      <div className="min-h-screen flex">
+      <div className="min-h-screen flex relative z-10">
         {/* Left Side - Form */}
         <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-20 xl:px-24">
           <div className="max-w-md w-full space-y-8">

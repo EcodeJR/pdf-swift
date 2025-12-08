@@ -27,6 +27,12 @@ const fingerprintMiddleware = async (req, res, next) => {
         const fingerprint = generateFingerprint(req);
         req.deviceFingerprint = fingerprint;
 
+        // Check if Redis is connected before using it
+        if (redisClient.status !== 'ready') {
+            // Redis not available, skip tracking but continue with fingerprint
+            return next();
+        }
+
         // Store fingerprint data in Redis for tracking
         const key = `fingerprint:${fingerprint}`;
         const exists = await redisClient.exists(key);
@@ -67,6 +73,11 @@ const fingerprintMiddleware = async (req, res, next) => {
 // Check if device is suspicious
 const checkSuspiciousDevice = async (fingerprint) => {
     try {
+        // Return not suspicious if Redis is not available
+        if (redisClient.status !== 'ready') {
+            return { suspicious: false };
+        }
+
         const key = `fingerprint:${fingerprint}`;
         const deviceDataStr = await redisClient.get(key);
 
@@ -101,6 +112,11 @@ const checkSuspiciousDevice = async (fingerprint) => {
 // Get device statistics
 const getDeviceStats = async (fingerprint) => {
     try {
+        // Return null if Redis is not available
+        if (redisClient.status !== 'ready') {
+            return null;
+        }
+
         const key = `fingerprint:${fingerprint}`;
         const deviceDataStr = await redisClient.get(key);
 
@@ -119,6 +135,11 @@ const getDeviceStats = async (fingerprint) => {
 // Block a device
 const blockDevice = async (fingerprint, reason, duration = 86400) => {
     try {
+        // Return false if Redis is not available
+        if (redisClient.status !== 'ready') {
+            return false;
+        }
+
         const key = `blocked:${fingerprint}`;
         const blockData = {
             fingerprint,
@@ -139,6 +160,11 @@ const blockDevice = async (fingerprint, reason, duration = 86400) => {
 // Check if device is blocked
 const isDeviceBlocked = async (fingerprint) => {
     try {
+        // Return not blocked if Redis is not available
+        if (redisClient.status !== 'ready') {
+            return { blocked: false };
+        }
+
         const key = `blocked:${fingerprint}`;
         const blockDataStr = await redisClient.get(key);
 

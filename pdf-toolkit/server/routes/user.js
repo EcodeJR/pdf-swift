@@ -10,12 +10,24 @@ const Conversion = require('../models/Conversion');
 router.get('/stats', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    
+
+    // Check and reset hourly counter if needed
+    const currentTime = new Date();
+    const hoursSinceReset = (currentTime - user.hourResetTime) / (1000 * 60 * 60);
+
+    // Reset counter if more than 1 hour has passed
+    if (hoursSinceReset >= 1 || !user.hourResetTime) {
+      console.log(`🔄 Resetting hourly counter for user ${user._id} (${hoursSinceReset.toFixed(2)} hours since last reset)`);
+      user.conversionsThisHour = 0;
+      user.hourResetTime = currentTime;
+      await user.save();
+    }
+
     // Get conversions this month
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
-    
+
     const conversionsThisMonth = await Conversion.countDocuments({
       userId: user._id,
       createdAt: { $gte: startOfMonth }
@@ -68,18 +80,45 @@ router.get('/conversion-history', protect, async (req, res) => {
 });
 
 // @route   GET /api/user/files
-// @desc    Get user's cloud-stored files (placeholder for GridFS)
+// @desc    Get user's files (both temporary and cloud storage)
 // @access  Private
 router.get('/files', protect, async (req, res) => {
   try {
-    // This would query GridFS for user's files
-    // For now, return conversions with cloud storage
-    const cloudFiles = await Conversion.find({ 
-      userId: req.user._id,
-      storageType: 'cloud'
+    // Get all user files, sorted by most recent
+    const allFiles = await Conversion.find({
+      userId: req.user._id
     }).sort({ createdAt: -1 });
 
-    res.json({ files: cloudFiles });
+    // Add expiry information for each file
+    const now = Date.now();
+    const filesWithExpiry = allFiles.map(file => {
+      const fileObj = file.toObject();
+
+      if (fileObj.expiresAt) {
+        const expiresAtTime = new Date(fileObj.expiresAt).getTime();
+        const timeRemaining = expiresAtTime - now;
+
+        return {
+          ...fileObj,
+          timeRemaining: Math.max(0, timeRemaining), // milliseconds
+          isExpired: timeRemaining <= 0,
+          expiresIn: timeRemaining > 0 ? Math.ceil(timeRemaining / 60000) : 0 // minutes
+        };
+      }
+
+      // Cloud files don't expire
+      return {
+        ...fileObj,
+        timeRemaining: null,
+        isExpired: false,
+        expiresIn: null
+      };
+    });
+
+    // Filter out expired files
+    const activeFiles = filesWithExpiry.filter(f => !f.isExpired);
+
+    res.json({ files: activeFiles });
   } catch (error) {
     console.error('Get files error:', error);
     res.status(500).json({ message: 'Error fetching files' });

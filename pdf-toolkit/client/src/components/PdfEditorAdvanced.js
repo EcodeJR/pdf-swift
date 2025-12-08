@@ -13,6 +13,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.0);
   const [loadError, setLoadError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   // Tools
   const [tool, setTool] = useState('text');
@@ -80,7 +81,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
         id: Date.now(),
         text: textSettings.content,
         x: x,
-        y: 800 - y,
+        y: y, // Send top-left y, backend will flip it
         page: currentPage - 1,
         size: textSettings.size,
         color: hexToRgb(textSettings.color),
@@ -93,7 +94,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
         id: Date.now(),
         type: shapeSettings.type,
         x: x,
-        y: 800 - y,
+        y: y, // Send top-left y, backend will flip it
         page: currentPage - 1,
         width: 100,
         height: shapeSettings.type === 'line' ? 2 : 60,
@@ -179,15 +180,15 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
 
     if (dragging.type === 'text') {
       setTexts(texts.map(t =>
-        t.id === dragging.id ? { ...t, x, y: 800 - y } : t
+        t.id === dragging.id ? { ...t, x, y } : t
       ));
     } else if (dragging.type === 'image') {
       setImages(images.map(i =>
-        i.id === dragging.id ? { ...i, x, y: 800 - y } : i
+        i.id === dragging.id ? { ...i, x, y } : i
       ));
     } else if (dragging.type === 'shape') {
       setShapes(shapes.map(s =>
-        s.id === dragging.id ? { ...s, x, y: 800 - y } : s
+        s.id === dragging.id ? { ...s, x, y } : s
       ));
     }
   };
@@ -231,32 +232,37 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
   };
 
   // Save all edits
-  const handleSave = () => {
-    const edits = {
-      texts: texts.map(t => ({
-        text: t.text,
-        x: t.x,
-        y: t.y,
-        page: t.page,
-        size: t.size,
-        color: t.color
-      })),
-      images,
-      annotations: shapes.map(s => ({
-        type: s.type === 'rectangle' ? 'rectangle' : s.type === 'circle' ? 'rectangle' : 'line',
-        x: s.x,
-        y: s.y,
-        page: s.page,
-        width: s.width,
-        height: s.height,
-        color: s.fillColor,
-        borderColor: s.borderColor,
-        opacity: s.opacity,
-        borderWidth: s.borderWidth
-      })),
-      watermark
-    };
-    onSave(edits);
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const edits = {
+        texts: texts.map(t => ({
+          text: t.text,
+          x: t.x,
+          y: t.y,
+          page: t.page,
+          size: t.size,
+          color: t.color
+        })),
+        images,
+        annotations: shapes.map(s => ({
+          type: s.type === 'rectangle' ? 'rectangle' : s.type === 'circle' ? 'rectangle' : 'line',
+          x: s.x,
+          y: s.y,
+          page: s.page,
+          width: s.width,
+          height: s.height,
+          color: s.fillColor,
+          borderColor: s.borderColor,
+          opacity: s.opacity,
+          borderWidth: s.borderWidth
+        })),
+        watermark
+      };
+      await onSave(edits);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -268,9 +274,16 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
           <div className="flex space-x-2">
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+              disabled={saving}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
-              Save & Download
+              {saving && (
+                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              )}
+              <span>{saving ? 'Saving...' : 'Save & Download'}</span>
             </button>
             <button
               onClick={onCancel}
@@ -637,7 +650,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
                       style={{
                         position: 'absolute',
                         left: t.x * scale,
-                        top: (800 - t.y) * scale,
+                        top: t.y * scale, // Use raw y coordinate (no inversion needed for preview)
                         fontSize: t.size * scale,
                         color: `rgb(${t.color.r * 255}, ${t.color.g * 255}, ${t.color.b * 255})`,
                         fontWeight: t.bold ? 'bold' : 'normal',
@@ -662,7 +675,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
                       style={{
                         position: 'absolute',
                         left: s.x * scale,
-                        top: (800 - s.y) * scale,
+                        top: s.y * scale, // Use raw y coordinate (no inversion needed for preview)
                         width: s.width * scale,
                         height: s.height * scale,
                         backgroundColor: `rgba(${s.fillColor.r * 255}, ${s.fillColor.g * 255}, ${s.fillColor.b * 255}, ${s.opacity})`,
@@ -687,7 +700,7 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
                       style={{
                         position: 'absolute',
                         left: i.x * scale,
-                        top: (800 - i.y) * scale,
+                        top: i.y * scale, // Use raw y coordinate (no inversion needed for preview)
                         width: i.width * scale,
                         height: i.height * scale,
                         cursor: 'move',

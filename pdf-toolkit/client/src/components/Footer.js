@@ -65,19 +65,14 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white">
+                <Link to="/about-us" className="text-gray-400 hover:text-white">
                   About Us
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white">
+                <Link to="/contact" className="text-gray-400 hover:text-white">
                   Contact
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-gray-400 hover:text-white">
-                  Blog
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -87,19 +82,19 @@ const Footer = () => {
             <h4 className="text-lg font-semibold mb-4">Legal</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="#" className="text-gray-400 hover:text-white">
+                <Link to="/privacy-policy" className="text-gray-400 hover:text-white">
                   Privacy Policy
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white">
+                <Link to="/terms-of-service" className="text-gray-400 hover:text-white">
                   Terms of Service
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white">
+                <Link to="/cookie-policy" className="text-gray-400 hover:text-white">
                   Cookie Policy
-                </a>
+                </Link>
               </li>
             </ul>
           </div>

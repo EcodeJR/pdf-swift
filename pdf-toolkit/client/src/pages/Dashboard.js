@@ -13,6 +13,29 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchStats();
+
+    // Refresh stats when user returns to the tab
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('Dashboard visible - refreshing stats...');
+        fetchStats();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Also refresh stats every 30 seconds while on the page
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        console.log('Auto-refreshing dashboard stats...');
+        fetchStats();
+      }
+    }, 30000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(interval);
+    };
   }, []);
 
   const fetchStats = async () => {
@@ -113,12 +136,12 @@ const Dashboard = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 pb-8">
+      <div className="max-w-7xl mx-auto px-6 pb-8 relative z-10">
         {/* Conversion Limit Section */}
         <div className="section mb-8">
           <h2 className="text-heading font-bold mb-6">Your Limits</h2>
           <div className="card bg-white">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-2">
                   <FiClock className="w-6 h-6 text-primary" />
@@ -204,7 +227,7 @@ const Dashboard = () => {
         {!user?.isPremium && (
           <div className="section">
             <div className="card bg-gradient-to-br from-primary-600 to-primary text-white">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col md:flex-row items-center gap-6 justify-between">
                 <div className="flex-1">
                   <h3 className="text-heading font-bold mb-2">Unlock Premium</h3>
                   <p className="text-body text-white/90 mb-4">

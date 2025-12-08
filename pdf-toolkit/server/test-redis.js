@@ -1,38 +1,52 @@
-// Quick test to verify Redis Labs connection
 require('dotenv').config();
-const Redis = require('ioredis');
+const redisClient = require('./config/redis');
 
-const redisClient = new Redis({
-    host: 'redis-17401.c245.us-east-1-3.ec2.cloud.redislabs.com',
-    port: 17401,
-    username: 'default',
-    password: 'lzGbYEWRtJobfBvJmKwFbHTBzCozFM6q',
-});
+console.log('\n🧪 Testing Redis Connection...\n');
 
-redisClient.on('connect', () => {
-    console.log('✅ Connected to Redis Labs!');
-});
-
-redisClient.on('ready', async () => {
-    console.log('✅ Redis ready!');
-
-    // Test set and get
+// Wait a bit for connection to establish
+setTimeout(async () => {
     try {
-        await redisClient.set('test', 'Hello from PDF Swift!');
-        const value = await redisClient.get('test');
-        console.log('✅ Test Value:', value);
+        console.log('Current Redis status:', redisClient.status);
 
-        console.log('\n🎉 Redis Labs connection successful!');
-        console.log('You can now start the server.\n');
+        if (redisClient.status === 'ready') {
+            console.log('\n✅ Redis is connected and ready!');
+
+            // Test basic operations
+            console.log('\n📝 Testing SET operation...');
+            await redisClient.set('test:key', 'Hello Redis!');
+            console.log('✅ SET successful');
+
+            console.log('\n📖 Testing GET operation...');
+            const value = await redisClient.get('test:key');
+            console.log('✅ GET successful, value:', value);
+
+            console.log('\n🗑️  Testing DEL operation...');
+            await redisClient.del('test:key');
+            console.log('✅ DEL successful');
+
+            console.log('\n🎉 All Redis operations successful!');
+
+            // Get server info
+            console.log('\n📊 Redis Server Info:');
+            const info = await redisClient.info('server');
+            const lines = info.split('\r\n').filter(line =>
+                line.includes('redis_version') ||
+                line.includes('os') ||
+                line.includes('uptime_in_days')
+            );
+            lines.forEach(line => console.log('  ', line));
+
+        } else {
+            console.log('\n❌ Redis is not ready. Status:', redisClient.status);
+            console.log('Check the error messages above for details.');
+        }
 
         process.exit(0);
     } catch (error) {
-        console.error('❌ Test failed:', error);
+        console.error('\n❌ Redis test failed:', error.message);
+        console.error('Full error:', error);
         process.exit(1);
     }
-});
+}, 5000); // Wait 5 seconds for connection
 
-redisClient.on('error', (error) => {
-    console.error('❌ Redis error:', error.message);
-    process.exit(1);
-});
+console.log('⏳ Waiting for Redis connection (5 seconds)...\n');

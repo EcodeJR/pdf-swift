@@ -19,6 +19,12 @@ const getRateLimitKey = (req) => {
 // Check rate limit using Redis
 const checkRateLimit = async (key, limit, windowMs) => {
   try {
+    // Check if Redis is connected
+    if (redisClient.status !== 'ready') {
+      console.warn('⚠️  Redis not ready - allowing request');
+      return { allowed: true, remaining: limit };
+    }
+
     const current = await redisClient.get(key);
     const count = current ? parseInt(current) : 0;
 
@@ -55,8 +61,8 @@ const checkRateLimit = async (key, limit, windowMs) => {
 const enhancedRateLimiter = (options = {}) => {
   const {
     windowMs = 60 * 60 * 1000, // 1 hour
-    maxFree = 3, // 3 conversions for free users
-    maxGuest = 3, // 3 conversions for guests
+    maxFree = 5, // 5 conversions for free users (matches database limit)
+    maxGuest = 5, // 5 conversions for guests (matches database limit)
     message = 'Rate limit exceeded',
   } = options;
 
@@ -104,6 +110,32 @@ const enhancedRateLimiter = (options = {}) => {
       res.setHeader('X-RateLimit-Limit', limit);
       res.setHeader('X-RateLimit-Remaining', rateLimitStatus.remaining);
 
+      // Also update database counter for authenticated users (for dashboard display)
+      if (req.user) {
+        try {
+          const User = require('../models/User');
+          const user = await User.findById(req.user._id);
+          if (user) {
+            // Check and reset if needed (same logic as checkUserConversionLimit)
+            const currentTime = new Date();
+            const hoursSinceReset = (currentTime - user.hourResetTime) / (1000 * 60 * 60);
+
+            if (hoursSinceReset >= 1 || !user.hourResetTime) {
+              user.conversionsThisHour = 0;
+              user.hourResetTime = currentTime;
+            }
+
+            // Increment counter
+            user.conversionsThisHour += 1;
+            await user.save();
+            console.log(`✅ Database counter updated: ${user.conversionsThisHour}/5`);
+          }
+        } catch (dbError) {
+          console.error('Error updating database counter:', dbError);
+          // Don't block the request if database update fails
+        }
+      }
+
       next();
 
     } catch (error) {
@@ -119,6 +151,7 @@ const checkUserConversionLimit = async (req, res, next) => {
   try {
     // Skip for premium users
     if (req.user && req.user.isPremium) {
+      console.log(`✅ Premium user ${req.user._id} - unlimited conversions`);
       return next();
     }
 
@@ -130,14 +163,18 @@ const checkUserConversionLimit = async (req, res, next) => {
 
       // Reset counter if more than 1 hour has passed
       if (hoursSinceReset >= 1 || !user.hourResetTime) {
+        console.log(`🔄 Resetting hourly counter for user ${user._id}`);
         user.conversionsThisHour = 0;
         user.hourResetTime = currentTime;
         await user.save();
       }
 
-      // Check if user has exceeded limit
-      const limit = parseInt(process.env.FREE_CONVERSIONS_PER_HOUR || 3);
+      // Check if user has exceeded limit BEFORE incrementing
+      const limit = parseInt(process.env.FREE_CONVERSIONS_PER_HOUR || 5);
+      console.log(`📊 User ${user._id}: ${user.conversionsThisHour}/${limit} conversions used this hour`);
+
       if (user.conversionsThisHour >= limit) {
+        console.warn(`🚫 User ${user._id} exceeded limit (${user.conversionsThisHour}/${limit})`);
         return res.status(429).json({
           message: 'You have reached your conversion limit for this hour. Upgrade to Premium for unlimited conversions!',
           limitExceeded: true,
@@ -146,17 +183,29 @@ const checkUserConversionLimit = async (req, res, next) => {
         });
       }
 
-      // Increment counter
+      // Increment counter AFTER checking the limit
       user.conversionsThisHour += 1;
       await user.save();
+      console.log(`✅ Conversion allowed. New count: ${user.conversionsThisHour}/${limit}`);
 
       // Add remaining count to response
       res.locals.conversionsRemaining = limit - user.conversionsThisHour;
+    } else {
+      // For guest users without Redis, we need to track via IP
+      // This is a fallback - in production, Redis should be used for guests
+      console.warn('⚠️  Guest user detected without Redis - allowing conversion (should use Redis in production)');
     }
 
     next();
   } catch (error) {
-    console.error('User conversion limit error:', error);
+    console.error('❌ User conversion limit error:', error);
+    // IMPORTANT: Still enforce limit on error to be safe
+    if (req.user && !req.user.isPremium) {
+      return res.status(500).json({
+        message: 'Error checking conversion limits. Please try again.',
+        error: error.message
+      });
+    }
     next();
   }
 };

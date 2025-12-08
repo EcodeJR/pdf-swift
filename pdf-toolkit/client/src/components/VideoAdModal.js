@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { FiDownload } from 'react-icons/fi';
 
-const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName }) => {
+const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, adDuration = 15 }) => {
   const [adCompleted, setAdCompleted] = useState(false);
-  const [countdown, setCountdown] = useState(15); // Default countdown
+  const [countdown, setCountdown] = useState(adDuration); // Use custom duration
   const [adError, setAdError] = useState(false);
+  const adCompleteCalled = React.useRef(false);
+
+  // Reset ref when modal opens/closes
+  useEffect(() => {
+    if (!isOpen) {
+      adCompleteCalled.current = false;
+      setAdCompleted(false);
+      setCountdown(adDuration); // Reset to custom duration
+    }
+  }, [isOpen, adDuration]);
 
   useEffect(() => {
     if (isOpen && !adCompleted) {
@@ -12,10 +22,15 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName }) 
       const timer = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
-            clearInterval(timer);
-            // Simulate ad completion for development
-            setAdCompleted(true);
-            onAdComplete();
+            // Complete the ad when countdown finishes
+            if (!adCompleteCalled.current) {
+              adCompleteCalled.current = true;
+              // Use setTimeout to ensure state updates happen after this render cycle
+              setTimeout(() => {
+                setAdCompleted(true);
+                onAdComplete();
+              }, 0);
+            }
             return 0;
           }
           return prev - 1;
@@ -24,16 +39,43 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName }) 
 
       // For production, initialize Google IMA SDK here
       // This is a simplified version for development
-      
+
       return () => clearInterval(timer);
     }
   }, [isOpen, adCompleted, onAdComplete]);
 
-  const handleDownload = () => {
-    if (adCompleted) {
-      // Trigger download
-      window.location.href = downloadUrl;
-      onClose();
+  const handleDownload = async () => {
+    if (adCompleted && downloadUrl) {
+      try {
+        // Construct absolute URL
+        let finalDownloadUrl = downloadUrl;
+        if (!finalDownloadUrl.startsWith('http')) {
+          const baseUrl = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
+          if (!finalDownloadUrl.startsWith('/')) finalDownloadUrl = `/${finalDownloadUrl}`;
+          finalDownloadUrl = `${baseUrl}${finalDownloadUrl}`;
+        }
+
+        // Fetch as blob to bypass router completely
+        const response = await fetch(finalDownloadUrl);
+        if (!response.ok) throw new Error('Download failed');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName || 'downloaded-file.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        onClose();
+      } catch (error) {
+        console.error('Download error:', error);
+        // Fallback to direct window open if fetch fails
+        window.open(downloadUrl, '_blank');
+        onClose();
+      }
     }
   };
 
@@ -45,7 +87,7 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName }) 
         <h2 className="text-2xl font-bold text-gray-900 mb-4">
           Your file is ready!
         </h2>
-        
+
         {!adCompleted ? (
           <>
             <div className="bg-gray-900 rounded-lg aspect-video flex items-center justify-center mb-4">
@@ -60,7 +102,7 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName }) 
                 </p>
               </div>
             </div>
-            
+
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
               <p className="text-sm text-blue-800">
                 <strong>Free users:</strong> Please watch this short ad to support our free service.
