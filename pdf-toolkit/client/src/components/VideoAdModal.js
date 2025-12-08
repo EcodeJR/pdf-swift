@@ -29,6 +29,10 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
               setTimeout(() => {
                 setAdCompleted(true);
                 onAdComplete();
+                // Auto-download after ad completes
+                setTimeout(() => {
+                  handleDownload();
+                }, 500);
               }, 0);
             }
             return 0;
@@ -45,7 +49,7 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
   }, [isOpen, adCompleted, onAdComplete]);
 
   const handleDownload = async () => {
-    if (adCompleted && downloadUrl) {
+    if (downloadUrl) {
       try {
         // Construct absolute URL
         let finalDownloadUrl = downloadUrl;
@@ -69,12 +73,13 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
 
-        onClose();
+        // Close modal after download starts
+        setTimeout(() => onClose(), 1000);
       } catch (error) {
         console.error('Download error:', error);
         // Fallback to direct window open if fetch fails
         window.open(downloadUrl, '_blank');
-        onClose();
+        setTimeout(() => onClose(), 1000);
       }
     }
   };

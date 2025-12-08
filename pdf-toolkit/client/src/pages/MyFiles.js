@@ -215,8 +215,8 @@ const MyFiles = () => {
           isOpen={showAdModal}
           onClose={() => setShowAdModal(false)}
           onAdComplete={() => {
+            // Don't close modal here - let VideoAdModal handle it after download
             toast.success('Starting download...');
-            setShowAdModal(false);
           }}
           downloadUrl={conversionAPI.downloadFile(selectedFile.outputFileName)}
           fileName={selectedFile.outputFileName}
