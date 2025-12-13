@@ -120,6 +120,21 @@ export const userAPI = {
     const response = await api.put('/user/profile', { name });
     return response.data;
   },
+
+  updatePassword: async (currentPassword, newPassword) => {
+    const response = await api.put('/user/password', { currentPassword, newPassword });
+    return response.data;
+  },
+
+  updatePreferences: async (preferences) => {
+    const response = await api.put('/user/preferences', preferences);
+    return response.data;
+  },
+
+  deleteAccount: async (password) => {
+    const response = await api.delete('/user/account', { data: { password } });
+    return response.data;
+  },
 };
 
 export default api;

@@ -1,21 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { paymentAPI, userAPI } from '../services/api';
-import { FiUser, FiLock, FiStar, FiToggleRight, FiToggleLeft, FiAlertCircle, FiSave } from 'react-icons/fi';
+import { FiUser, FiLock, FiStar, FiToggleRight, FiToggleLeft, FiAlertCircle, FiSave, FiX } from 'react-icons/fi';
 import { GridPattern } from '../components/GridPattern';
 
 const Settings = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   const [editName, setEditName] = useState(user?.name || '');
   const [isSavingName, setIsSavingName] = useState(false);
+
+  // Password Change State
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  // Delete Account State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+
   const [preferences, setPreferences] = useState({
     emailNotifications: true,
     marketingEmails: false,
     darkMode: false
   });
+
+  useEffect(() => {
+    if (user?.preferences) {
+      setPreferences(user.preferences);
+    }
+  }, [user]);
 
   const handleSaveName = async () => {
     if (!editName.trim()) {
@@ -35,6 +54,49 @@ const Settings = () => {
     }
   };
 
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await userAPI.updatePassword(passwordData.currentPassword, passwordData.newPassword);
+      toast.success('Password updated successfully');
+      setShowPasswordModal(false);
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      toast.error('Please enter your password to confirm');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await userAPI.deleteAccount(deletePassword);
+      toast.success('Account deleted successfully');
+      logout();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete account');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCancelSubscription = async () => {
     if (!window.confirm('Are you sure you want to cancel your subscription? You will retain access until the end of your billing period.')) {
       return;
@@ -44,6 +106,7 @@ const Settings = () => {
     try {
       await paymentAPI.cancelSubscription();
       toast.success('Subscription cancelled successfully');
+      await refreshUser();
     } catch (error) {
       toast.error('Failed to cancel subscription');
     } finally {
@@ -51,12 +114,22 @@ const Settings = () => {
     }
   };
 
-  const handlePreferenceChange = (key) => {
-    setPreferences(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-    toast.success('Preference updated');
+  const handlePreferenceChange = async (key) => {
+    const newPreferences = {
+      ...preferences,
+      [key]: !preferences[key]
+    };
+
+    setPreferences(newPreferences);
+
+    try {
+      await userAPI.updatePreferences({ [key]: newPreferences[key] });
+      toast.success('Preference updated');
+    } catch (error) {
+      // Revert on error
+      setPreferences(preferences);
+      toast.error('Failed to update preference');
+    }
   };
 
   return (
@@ -183,7 +256,7 @@ const Settings = () => {
                   </label>
                   <input
                     type="text"
-                    value={new Date(user?.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    value={user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
                     disabled
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
                   />
@@ -205,7 +278,10 @@ const Settings = () => {
                       <h4 className="text-body font-semibold text-gray-900">Password</h4>
                       <p className="text-caption text-gray-600 mt-1">Change your password regularly to keep your account secure</p>
                     </div>
-                    <button className="btn-secondary">
+                    <button
+                      onClick={() => setShowPasswordModal(true)}
+                      className="btn-secondary"
+                    >
                       Change Password
                     </button>
                   </div>
@@ -217,8 +293,8 @@ const Settings = () => {
                       <h4 className="text-body font-semibold text-gray-900">Two-Factor Authentication</h4>
                       <p className="text-caption text-gray-600 mt-1">Add an extra layer of security to your account</p>
                     </div>
-                    <button className="btn-secondary">
-                      Enable
+                    <button className="btn-secondary opacity-50 cursor-not-allowed" disabled>
+                      Coming Soon
                     </button>
                   </div>
                 </div>
@@ -229,7 +305,7 @@ const Settings = () => {
                       <h4 className="text-body font-semibold text-gray-900">Sessions</h4>
                       <p className="text-caption text-gray-600 mt-1">View and manage your active login sessions</p>
                     </div>
-                    <button className="btn-secondary">
+                    <button className="btn-secondary opacity-50 cursor-not-allowed" disabled>
                       View Sessions
                     </button>
                   </div>
@@ -379,7 +455,7 @@ const Settings = () => {
                   Once you delete your account, there is no going back. Please be certain.
                 </p>
                 <button
-                  onClick={() => toast.error('Account deletion not implemented yet')}
+                  onClick={() => setShowDeleteModal(true)}
                   className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
                 >
                   Delete Account
@@ -389,6 +465,128 @@ const Settings = () => {
           </div>
         </div>
       </div>
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative">
+            <button
+              onClick={() => setShowPasswordModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <FiX className="w-6 h-6" />
+            </button>
+
+            <h3 className="text-xl font-bold mb-4">Change Password</h3>
+
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                <input
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none"
+                  required
+                  minLength={8}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+                >
+                  {loading ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative">
+            <button
+              onClick={() => setShowDeleteModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <FiX className="w-6 h-6" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4 text-red-600">
+              <FiAlertCircle className="w-8 h-8" />
+              <h3 className="text-xl font-bold">Delete Account</h3>
+            </div>
+
+            <p className="text-gray-600 mb-6">
+              This action is permanent and cannot be undone. All your files and data will be permanently deleted.
+              Please enter your password to confirm.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  placeholder="Enter your password"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={loading || !deletePassword}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                >
+                  {loading ? 'Deleting...' : 'Delete Account'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

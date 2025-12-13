@@ -89,6 +89,20 @@ const userSchema = new mongoose.Schema({
   passwordResetExpires: {
     type: Date,
     default: null
+  },
+  preferences: {
+    emailNotifications: {
+      type: Boolean,
+      default: true
+    },
+    marketingEmails: {
+      type: Boolean,
+      default: false
+    },
+    darkMode: {
+      type: Boolean,
+      default: false
+    }
   }
 }, {
   timestamps: true

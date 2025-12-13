@@ -13,6 +13,7 @@ const CompressPdf = () => {
   const [loading, setLoading] = useState(false);
   const [convertedFile, setConvertedFile] = useState(null);
   const [showAdModal, setShowAdModal] = useState(false);
+  const [compressionLevel, setCompressionLevel] = useState(null);
 
   const handleConvert = async () => {
     if (selectedFiles.length === 0) {
@@ -20,10 +21,16 @@ const CompressPdf = () => {
       return;
     }
 
+    if (!compressionLevel) {
+      toast.error('Please select a compression level');
+      return;
+    }
+
     setLoading(true);
     const formData = new FormData();
     formData.append('file', selectedFiles[0]);
     formData.append('storageType', 'temporary');
+    formData.append('compressionLevel', compressionLevel);
 
     try {
       const data = await conversionAPI.convertFile('compress-pdf', formData);
@@ -60,18 +67,54 @@ const CompressPdf = () => {
 
         <div className="bg-white rounded-lg shadow-lg p-8">
           <FileUploader
-            onFilesSelect={(files) => setSelectedFiles(files)}
+            onFilesSelect={(files) => {
+              setSelectedFiles(files);
+              setCompressionLevel(null); // Reset selection on new file
+            }}
             acceptedFiles={{ 'application/pdf': ['.pdf'] }}
             maxFiles={1}
             maxSize={user?.isPremium ? 50 * 1024 * 1024 : 10 * 1024 * 1024}
             selectedFiles={selectedFiles}
-            onRemoveFile={(i) => setSelectedFiles([])}
+            onRemoveFile={(i) => {
+              setSelectedFiles([]);
+              setCompressionLevel(null);
+            }}
           />
+
+          {selectedFiles.length > 0 && (
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div
+                onClick={() => setCompressionLevel('basic')}
+                className={`cursor-pointer p-6 rounded-lg border-2 transition-all ${compressionLevel === 'basic'
+                  ? 'border-primary-600 bg-primary-50'
+                  : 'border-gray-200 hover:border-primary-300'
+                  }`}
+              >
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Basic Compression</h3>
+                <p className="text-gray-600 text-sm">
+                  Best for documents with text. Maintains high quality and text selectability. Standard reduction (~10-20%).
+                </p>
+              </div>
+
+              <div
+                onClick={() => setCompressionLevel('strong')}
+                className={`cursor-pointer p-6 rounded-lg border-2 transition-all ${compressionLevel === 'strong'
+                  ? 'border-primary-600 bg-primary-50'
+                  : 'border-gray-200 hover:border-primary-300'
+                  }`}
+              >
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Strong Compression</h3>
+                <p className="text-gray-600 text-sm">
+                  Best for scans and heavy images. Converts text to images (not selectable). Maximum reduction (~50%+).
+                </p>
+              </div>
+            </div>
+          )}
 
           <button
             onClick={handleConvert}
-            disabled={loading || selectedFiles.length === 0}
-            className="w-full mt-6 py-4 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center"
+            disabled={loading || selectedFiles.length === 0 || !compressionLevel}
+            className="w-full mt-6 py-4 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center transition-colors"
           >
             {loading ? (
               <>

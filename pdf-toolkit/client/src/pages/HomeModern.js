@@ -130,7 +130,7 @@ const HomeModern = () => {
 
       {/* Tools Section */}
       <section id="tools" className="section bg-white">
-        <div className="text-center mb-16">
+        <div className="text-center mb-16 relative z-10">
           <h2 className="text-hero font-bold text-gray-900 mb-4">
             All-in-One PDF Toolkit
           </h2>

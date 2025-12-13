@@ -180,4 +180,96 @@ router.put('/profile', protect, async (req, res) => {
   }
 });
 
+// @route   PUT /api/user/password
+// @desc    Change password
+// @access  Private
+router.put('/password', protect, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const bcrypt = require('bcryptjs');
+    const { sendPasswordChanged } = require('../utils/email');
+
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    // Check current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Incorrect current password' });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    // Send confirmation email
+    await sendPasswordChanged(user.email);
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ message: 'Error changing password' });
+  }
+});
+
+// @route   PUT /api/user/preferences
+// @desc    Update user preferences
+// @access  Private
+router.put('/preferences', protect, async (req, res) => {
+  try {
+    const { emailNotifications, marketingEmails, darkMode } = req.body;
+
+    const user = await User.findById(req.user._id);
+
+    if (emailNotifications !== undefined) user.preferences.emailNotifications = emailNotifications;
+    if (marketingEmails !== undefined) user.preferences.marketingEmails = marketingEmails;
+    if (darkMode !== undefined) user.preferences.darkMode = darkMode;
+
+    await user.save();
+
+    res.json({
+      message: 'Preferences updated',
+      preferences: user.preferences
+    });
+  } catch (error) {
+    console.error('Update preferences error:', error);
+    res.status(500).json({ message: 'Error updating preferences' });
+  }
+});
+
+// @route   DELETE /api/user/account
+// @desc    Delete user account
+// @access  Private
+router.delete('/account', protect, async (req, res) => {
+  try {
+    const { password } = req.body;
+    const bcrypt = require('bcryptjs');
+
+    const user = await User.findById(req.user._id);
+
+    // Verify password before deletion
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Incorrect password' });
+    }
+
+    // Delete all user files
+    await Conversion.deleteMany({ userId: user._id });
+
+    // Delete user
+    await User.findByIdAndDelete(user._id);
+
+    // TODO: Cancel Stripe subscription if active
+
+    res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ message: 'Error deleting account' });
+  }
+});
+
 module.exports = router;

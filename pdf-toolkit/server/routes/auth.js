@@ -65,7 +65,9 @@ router.post('/register', async (req, res) => {
         name: user.name,
         email: user.email,
         isPremium: user.isPremium,
-        conversionsThisHour: user.conversionsThisHour
+        conversionsThisHour: user.conversionsThisHour,
+        preferences: user.preferences,
+        createdAt: user.createdAt
       }
     });
   } catch (error) {
@@ -124,7 +126,9 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         isPremium: user.isPremium,
-        conversionsThisHour: user.conversionsThisHour
+        conversionsThisHour: user.conversionsThisHour,
+        preferences: user.preferences,
+        createdAt: user.createdAt
       }
     });
   } catch (error) {
@@ -148,7 +152,9 @@ router.get('/me', protect, async (req, res) => {
         subscriptionStatus: user.subscriptionStatus,
         conversionsThisHour: user.conversionsThisHour,
         filesStored: user.filesStored.length,
-        accountCreatedAt: user.accountCreatedAt
+        accountCreatedAt: user.accountCreatedAt,
+        preferences: user.preferences,
+        createdAt: user.createdAt
       }
     });
   } catch (error) {
@@ -228,6 +234,7 @@ router.post('/reset-password', async (req, res) => {
 router.get('/stats', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
+    const Conversion = require('../models/Conversion');
 
     // Check and reset hourly counter if needed
     const currentTime = new Date();
@@ -253,11 +260,20 @@ router.get('/stats', protect, async (req, res) => {
       await user.save();
     }
 
+    // Count all active files (temporary + cloud) that haven't expired
+    const activeFilesCount = await Conversion.countDocuments({
+      userId: user._id,
+      $or: [
+        { expiresAt: null }, // Cloud files (no expiry)
+        { expiresAt: { $gt: now } } // Temporary files not yet expired
+      ]
+    });
+
     res.json({
       totalConversions: user.totalConversions || 0,
       conversionsThisMonth: user.conversionsThisMonth || 0,
       conversionsThisHour: user.conversionsThisHour || 0,
-      filesStored: user.filesStored?.length || 0,
+      filesStored: activeFilesCount,
       isPremium: user.isPremium,
       accountType: user.isPremium ? 'Premium' : 'Free'
     });

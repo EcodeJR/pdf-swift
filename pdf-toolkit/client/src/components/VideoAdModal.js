@@ -51,16 +51,13 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
   const handleDownload = async () => {
     if (downloadUrl) {
       try {
-        // Construct absolute URL
-        let finalDownloadUrl = downloadUrl;
-        if (!finalDownloadUrl.startsWith('http')) {
-          const baseUrl = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
-          if (!finalDownloadUrl.startsWith('/')) finalDownloadUrl = `/${finalDownloadUrl}`;
-          finalDownloadUrl = `${baseUrl}${finalDownloadUrl}`;
-        }
+        // The downloadUrl from conversionAPI.downloadFile is already a complete URL
+        // e.g., "http://localhost:5000/api/convert/download/file.pdf"
+        // So we should use it directly
+        console.log('Downloading from:', downloadUrl);
 
         // Fetch as blob to bypass router completely
-        const response = await fetch(finalDownloadUrl);
+        const response = await fetch(downloadUrl);
         if (!response.ok) throw new Error('Download failed');
 
         const blob = await response.blob();

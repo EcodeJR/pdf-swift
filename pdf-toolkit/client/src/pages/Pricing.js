@@ -78,14 +78,14 @@ const Pricing = () => {
   ];
 
   return (
-    <div className="relative min-h-screen bg-secondary-50 py-12">
+    <div className="relative min-h-screen bg-secondary-50 py-12 z-10">
       {/* Grid Pattern Background */}
       <GridPattern
         className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
         width={60}
         height={60}
       />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
             Simple, Transparent Pricing

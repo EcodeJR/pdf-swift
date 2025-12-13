@@ -200,22 +200,99 @@ exports.compressPdf = async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const pdfBuffer = await fs.readFile(req.file.path);
-    const pdfDoc = await PDFDocument.load(pdfBuffer);
-
-    // Save with compression options
-    const compressedBytes = await pdfDoc.save({
-      useObjectStreams: true,
-      addDefaultPage: false,
-      objectsPerTick: 50
-    });
-
+    const { compressionLevel } = req.body; // 'basic' or 'strong'
     const outputFileName = req.file.filename.replace('.pdf', '-compressed.pdf');
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
+    let compressedBytes;
+    let originalSize;
 
-    await fs.writeFile(outputPath, compressedBytes);
+    if (compressionLevel === 'strong') {
+      // STRONG COMPRESSION (Rasterization)
+      const inputPath = req.file.path;
+      const outputDir = path.join(__dirname, '../uploads', `temp_${Date.now()}`);
 
-    const originalSize = pdfBuffer.length;
+      try {
+        await fs.mkdir(outputDir);
+
+        // 1. Convert to Images
+        const opts = {
+          format: 'jpeg',
+          out_dir: outputDir,
+          out_prefix: 'page',
+          page: null
+        };
+
+        await convert(inputPath, opts);
+
+        // 2. Compress Images & Build PDF
+        const pdfDoc = await PDFDocument.create();
+        const files = await fs.readdir(outputDir);
+        const imageFiles = files.filter(f => f.startsWith('page') && f.endsWith('.jpg'));
+
+        // Sort by page number
+        imageFiles.sort((a, b) => {
+          const numA = parseInt(a.match(/page-(\d+)/)[1]);
+          const numB = parseInt(b.match(/page-(\d+)/)[1]);
+          return numA - numB;
+        });
+
+        for (const file of imageFiles) {
+          const filePath = path.join(outputDir, file);
+          const imageBuffer = await fs.readFile(filePath);
+
+          // Compress with Sharp
+          const compressedImage = await sharp(imageBuffer)
+            .jpeg({ quality: 50 }) // Aggressive compression
+            .toBuffer();
+
+          const image = await pdfDoc.embedJpg(compressedImage);
+          const page = pdfDoc.addPage([image.width, image.height]);
+          page.drawImage(image, {
+            x: 0,
+            y: 0,
+            width: image.width,
+            height: image.height
+          });
+        }
+
+        compressedBytes = await pdfDoc.save();
+        await fs.writeFile(outputPath, compressedBytes);
+
+        // Cleanup temp dir
+        for (const file of await fs.readdir(outputDir)) {
+          await fs.unlink(path.join(outputDir, file));
+        }
+        await fs.rmdir(outputDir);
+
+        const stats = await fs.stat(req.file.path);
+        originalSize = stats.size;
+
+      } catch (err) {
+        // Cleanup on error
+        try {
+          const files = await fs.readdir(outputDir);
+          for (const file of files) await fs.unlink(path.join(outputDir, file));
+          await fs.rmdir(outputDir);
+        } catch (e) { }
+        throw err;
+      }
+
+    } else {
+      // BASIC COMPRESSION (Default)
+      const pdfBuffer = await fs.readFile(req.file.path);
+      originalSize = pdfBuffer.length;
+      const pdfDoc = await PDFDocument.load(pdfBuffer);
+
+      // Save with compression options
+      compressedBytes = await pdfDoc.save({
+        useObjectStreams: true,
+        addDefaultPage: false,
+        objectsPerTick: 50
+      });
+
+      await fs.writeFile(outputPath, compressedBytes);
+    }
+
     const compressedSize = compressedBytes.length;
     const reductionPercent = ((originalSize - compressedSize) / originalSize * 100).toFixed(2);
 
@@ -849,6 +926,17 @@ exports.editPdf = async (req, res) => {
       const { height } = page.getSize(); // Get actual page height
       const fontSize = textItem.size || 12;
 
+      // Select font based on bold/italic
+      let fontName = StandardFonts.Helvetica;
+      if (textItem.bold && textItem.italic) {
+        fontName = StandardFonts.HelveticaBoldOblique;
+      } else if (textItem.bold) {
+        fontName = StandardFonts.HelveticaBold;
+      } else if (textItem.italic) {
+        fontName = StandardFonts.HelveticaOblique;
+      }
+      const font = await pdfDoc.embedFont(fontName);
+
       // Parse color - handle both object {r, g, b} and string formats
       let textColor;
       if (textItem.color && typeof textItem.color === 'object') {
@@ -880,7 +968,8 @@ exports.editPdf = async (req, res) => {
         x: textItem.x,
         y: height - textItem.y - fontSize, // Adjust for font size as drawText uses baseline
         size: fontSize,
-        color: textColor
+        color: textColor,
+        font: font
       });
     }
 
@@ -976,26 +1065,66 @@ exports.editPdf = async (req, res) => {
         annotationColor = rgb(1, 1, 0); // Default yellow
       }
 
+      // Parse border color using rgb() function
+      let borderColor;
+      if (annotation.borderColor && typeof annotation.borderColor === 'object') {
+        const { r = 0, g = 0, b = 0 } = annotation.borderColor;
+        borderColor = rgb(r, g, b);
+      } else {
+        borderColor = undefined; // No border
+      }
+
       const opacity = annotation.opacity || 0.3;
 
       if (annotation.type === 'rectangle' || annotation.type === 'highlight') {
-        page.drawRectangle({
-          x: annotation.x,
-          y: height - annotation.y - (annotation.height || 0), // Adjust for height (draws from bottom-left)
-          width: annotation.width,
-          height: annotation.height,
-          color: annotationColor,
-          opacity: opacity,
-          borderColor: annotation.borderColor || undefined,
-          borderWidth: annotation.borderWidth || 1
-        });
+        // Validate rectangle has required dimensions
+        if (typeof annotation.x === 'number' && typeof annotation.y === 'number' &&
+          typeof annotation.width === 'number' && typeof annotation.height === 'number') {
+          page.drawRectangle({
+            x: annotation.x,
+            y: height - annotation.y - (annotation.height || 0), // Adjust for height (draws from bottom-left)
+            width: annotation.width,
+            height: annotation.height,
+            color: annotationColor,
+            opacity: opacity,
+            borderColor: borderColor,
+            borderWidth: annotation.borderWidth || 1
+          });
+        } else {
+          console.warn('Skipping rectangle annotation with invalid dimensions:', annotation);
+        }
+      } else if (annotation.type === 'circle') {
+        // Draw circle using ellipse
+        if (typeof annotation.x === 'number' && typeof annotation.y === 'number' &&
+          typeof annotation.width === 'number' && typeof annotation.height === 'number') {
+          const centerX = annotation.x + annotation.width / 2;
+          const centerY = height - annotation.y - annotation.height / 2;
+          page.drawEllipse({
+            x: centerX,
+            y: centerY,
+            xScale: annotation.width / 2,
+            yScale: annotation.height / 2,
+            color: annotationColor,
+            opacity: opacity,
+            borderColor: borderColor,
+            borderWidth: annotation.borderWidth || 1
+          });
+        } else {
+          console.warn('Skipping circle annotation with invalid dimensions:', annotation);
+        }
       } else if (annotation.type === 'line') {
-        page.drawLine({
-          start: { x: annotation.x, y: height - annotation.y },
-          end: { x: annotation.x2, y: height - annotation.y2 },
-          thickness: annotation.thickness || 2,
-          color: annotationColor
-        });
+        // Validate line has required coordinates
+        if (typeof annotation.x === 'number' && typeof annotation.y === 'number' &&
+          typeof annotation.x2 === 'number' && typeof annotation.y2 === 'number') {
+          page.drawLine({
+            start: { x: annotation.x, y: height - annotation.y },
+            end: { x: annotation.x2, y: height - annotation.y2 },
+            thickness: annotation.thickness || 2,
+            color: annotationColor
+          });
+        } else {
+          console.warn('Skipping line annotation with invalid coordinates:', annotation);
+        }
       }
     }
 
