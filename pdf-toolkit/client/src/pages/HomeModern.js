@@ -18,6 +18,9 @@ const HomeModern = () => {
     { name: 'Merge PDF', icon: FiLayers, path: '/merge-pdf', description: 'Combine multiple PDFs', color: 'from-violet-500 to-purple-600' },
     { name: 'Split PDF', icon: FiScissors, path: '/split-pdf', description: 'Extract specific pages', color: 'from-sky-500 to-blue-600' },
     { name: 'Edit PDF', icon: FiEdit3, path: '/edit-pdf', description: 'Add text & annotations', color: 'from-fuchsia-500 to-purple-600' },
+    { name: 'Watermark PDF', icon: FiImage, path: '/watermark-pdf', description: 'Add stamp to PDF', color: 'from-cyan-500 to-blue-600' },
+    { name: 'Protect PDF', icon: FiLock, path: '/protect-pdf', description: 'Encrypt with password', color: 'from-slate-500 to-gray-600' },
+    { name: 'Unlock PDF', icon: FiLock, path: '/unlock-pdf', description: 'Remove password', color: 'from-emerald-500 to-green-600' },
   ];
 
   const features = [
@@ -49,16 +52,16 @@ const HomeModern = () => {
   ];
 
   return (
-    <div className="relative min-h-screen bg-secondary-50">
+    <div className="relative min-h-screen bg-[var(--background)]">
       <GridPattern
-        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)] opacity-20"
         width={60}
         height={60}
       />
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary to-primary-500 z-10">
+      <section className="relative overflow-hidden bg-gradient-to-br from-[var(--primary-600)] via-[var(--primary)] to-[var(--primary-600)] z-10">
         <GridPattern
-          className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+          className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)] opacity-70"
           width={60}
           height={60}
         />
@@ -123,13 +126,13 @@ const HomeModern = () => {
         {/* Wave Divider */}
         <div className="absolute bottom-0 left-0 right-0">
           <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="white" />
+            <path d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="var(--surface)" />
           </svg>
         </div>
       </section>
 
       {/* Tools Section */}
-      <section id="tools" className="section bg-white">
+      <section id="tools" className="section bg-[var(--surface)]">
         <div className="text-center mb-16 relative z-10">
           <h2 className="text-hero font-bold text-gray-900 mb-4">
             All-in-One PDF Toolkit
@@ -144,19 +147,19 @@ const HomeModern = () => {
             <Link
               key={tool.path}
               to={tool.path}
-              className="group relative bg-white rounded-lg p-6 border-2 border-gray-100 hover:border-primary transition-all duration-300 hover:-translate-y-2"
+              className="group relative bg-[var(--surface)] rounded-lg p-6 border-2 border-[var(--border)] hover:border-[var(--primary)] transition-all duration-300 hover:-translate-y-2"
               style={{ animationDelay: `${index * 50}ms` }}
             >
               {/* Icon */}
               <div className="icon-wrapper group-hover:scale-110 transition-transform duration-300">
-                <tool.icon className="w-7 h-7 text-primary" />
+                <tool.icon className="w-7 h-7 text-[var(--primary)]" />
               </div>
 
               {/* Content */}
-              <h3 className="font-semibold text-gray-900 mb-2 text-lg">
+              <h3 className="font-semibold text-[var(--text-primary)] mb-2 text-lg">
                 {tool.name}
               </h3>
-              <p className="text-sm text-gray-600 leading-relaxed">
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 {tool.description}
               </p>
 
@@ -170,7 +173,7 @@ const HomeModern = () => {
       </section>
 
       {/* Features Section */}
-      <section className="section bg-light">
+      <section className="section bg-[var(--background)]">
         <div className="text-center mb-16">
           <h2 className="text-hero font-bold text-gray-900 mb-4">
             Why Choose PDF Swift?
@@ -195,10 +198,10 @@ const HomeModern = () => {
               </div>
 
               {/* Content */}
-              <h3 className="text-heading-sm font-bold text-gray-900 mb-3">
+              <h3 className="text-heading-sm font-bold text-[var(--text-primary)] mb-3">
                 {feature.title}
               </h3>
-              <p className="text-body-sm text-gray-600 leading-relaxed">
+              <p className="text-body-sm text-[var(--text-secondary)] leading-relaxed">
                 {feature.description}
               </p>
             </div>
@@ -207,12 +210,17 @@ const HomeModern = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="section bg-dark text-white">
+      <section className="section bg-[var(--primary-600)] text-[var(--background)]">
+        <GridPattern
+          className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)] opacity-20"
+          width={60}
+          height={60}
+        />
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-hero font-bold mb-6">
             Ready to Get Started?
           </h2>
-          <p className="text-body mb-10 text-gray-300">
+          <p className="text-body mb-10 text-[var(--background)]/80">
             Join thousands of users who trust PDF Swift for their document needs.
             {!user && ' Start with 3 free conversions per hour, no credit card required.'}
           </p>
@@ -227,7 +235,7 @@ const HomeModern = () => {
                 </Link>
               </>
             ) : (
-              <Link to="/dashboard" className="btn-primary">
+              <Link to="/dashboard" className="btn-primary bg-white text-primary hover:bg-gray-50 shadow-lg hover:shadow-xl group">
                 Go to Dashboard
               </Link>
             )}

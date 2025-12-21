@@ -52,6 +52,21 @@ const Footer = () => {
                   Split PDF
                 </Link>
               </li>
+              <li>
+                <Link to="/watermark-pdf" className="text-gray-400 hover:text-white">
+                  Watermark PDF
+                </Link>
+              </li>
+              <li>
+                <Link to="/protect-pdf" className="text-gray-400 hover:text-white">
+                  Protect PDF
+                </Link>
+              </li>
+              <li>
+                <Link to="/unlock-pdf" className="text-gray-400 hover:text-white">
+                  Unlock PDF
+                </Link>
+              </li>
             </ul>
           </div>
 

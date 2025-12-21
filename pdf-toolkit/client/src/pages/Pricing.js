@@ -78,19 +78,18 @@ const Pricing = () => {
   ];
 
   return (
-    <div className="relative min-h-screen bg-secondary-50 py-12 z-10">
-      {/* Grid Pattern Background */}
+    <div className="relative min-h-screen bg-[var(--background)] py-12 z-10">
       <GridPattern
-        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)] opacity-20"
         width={60}
         height={60}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
+          <h1 className="text-4xl font-extrabold text-[var(--text-primary)] mb-4">
             Simple, Transparent Pricing
           </h1>
-          <p className="text-xl text-gray-600">
+          <p className="text-xl text-[var(--text-secondary)]">
             Choose the plan that's right for you
           </p>
         </div>
@@ -98,11 +97,11 @@ const Pricing = () => {
         {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
           {/* Free Plan */}
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Free</h2>
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-lg p-8">
+            <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">Free</h2>
             <div className="mb-6">
-              <span className="text-5xl font-extrabold text-gray-900">$0</span>
-              <span className="text-gray-600">/month</span>
+              <span className="text-5xl font-extrabold text-[var(--text-primary)]">$0</span>
+              <span className="text-[var(--text-secondary)]">/month</span>
             </div>
             <ul className="space-y-3 mb-8">
               {features.free.map((feature, index) => (
@@ -112,14 +111,14 @@ const Pricing = () => {
                   ) : (
                     <FiX className="w-5 h-5 text-gray-300 mr-2 flex-shrink-0 mt-0.5" />
                   )}
-                  <span className={feature.included ? 'text-gray-700' : 'text-gray-400'}>
+                  <span className={feature.included ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]/40'}>
                     {feature.text}
                   </span>
                 </li>
               ))}
             </ul>
             <button
-              className="w-full py-3 px-4 bg-gray-200 text-gray-700 rounded-lg font-medium cursor-not-allowed"
+              className="w-full py-3 px-4 bg-[var(--border)] text-[var(--text-secondary)] rounded-lg font-medium cursor-not-allowed"
               disabled
             >
               Current Plan
@@ -127,7 +126,7 @@ const Pricing = () => {
           </div>
 
           {/* Premium Plan */}
-          <div className="bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg shadow-xl p-8 text-white relative">
+          <div className="bg-gradient-to-br from-[var(--primary-600)] to-[var(--primary)] rounded-lg shadow-xl p-8 text-[var(--background)] relative">
             <div className="absolute top-0 right-0 bg-yellow-400 text-gray-900 px-4 py-1 rounded-bl-lg rounded-tr-lg font-bold text-sm">
               Most Popular
             </div>
@@ -147,7 +146,7 @@ const Pricing = () => {
             <button
               onClick={handleUpgrade}
               disabled={loading || (user && user.isPremium)}
-              className="w-full py-3 px-4 bg-white text-primary-600 rounded-lg font-bold hover:bg-gray-100 disabled:opacity-50"
+              className="w-full py-3 px-4 bg-[var(--background)] text-[var(--primary)] rounded-lg font-bold hover:brightness-110 disabled:opacity-50 transition-all"
             >
               {loading ? 'Processing...' : user?.isPremium ? 'Current Plan' : 'Upgrade Now'}
             </button>
@@ -156,14 +155,14 @@ const Pricing = () => {
 
         {/* FAQ Section */}
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-8">
+          <h2 className="text-3xl font-bold text-center text-[var(--text-primary)] mb-8">
             Frequently Asked Questions
           </h2>
           <div className="space-y-6">
             {faqs.map((faq, index) => (
-              <div key={index} className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-2">{faq.q}</h3>
-                <p className="text-gray-600">{faq.a}</p>
+              <div key={index} className="bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow p-6">
+                <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">{faq.q}</h3>
+                <p className="text-[var(--text-secondary)]">{faq.a}</p>
               </div>
             ))}
           </div>
@@ -176,7 +175,7 @@ const Pricing = () => {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

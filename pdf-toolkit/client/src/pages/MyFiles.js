@@ -93,19 +93,19 @@ const MyFiles = () => {
   }
 
   return (
-    <div className="relative min-h-screen bg-secondary-50">
+    <div className="relative min-h-screen bg-[var(--background)]">
       <GridPattern
-        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)] opacity-20"
         width={60}
         height={60}
       />
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-[var(--surface)] border-b border-[var(--border)]">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-hero font-bold">My Files</h1>
-              <p className="text-body-sm text-gray-600 mt-1">
+              <h1 className="text-hero font-bold text-[var(--text-primary)]">My Files</h1>
+              <p className="text-body-sm text-[var(--text-secondary)] mt-1">
                 {files.length} {files.length === 1 ? 'file' : 'files'} stored
               </p>
             </div>
@@ -124,12 +124,12 @@ const MyFiles = () => {
       <div className="section relative z-10">
         {files.length === 0 ? (
           // Empty State
-          <div className="card text-center py-16">
+          <div className="card text-center py-16 bg-[var(--surface)] border border-[var(--border)]">
             <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-              <FiFolder className="w-12 h-12 text-primary" />
+              <FiFolder className="w-12 h-12 text-[var(--primary)]" />
             </div>
-            <h3 className="text-heading-sm font-bold mb-2">No files yet</h3>
-            <p className="text-body-sm text-gray-600 mb-8">
+            <h3 className="text-heading-sm font-bold mb-2 text-[var(--text-primary)]">No files yet</h3>
+            <p className="text-body-sm text-[var(--text-secondary)] mb-8">
               Start converting files to see them here
             </p>
             <Link to="/" className="btn-primary inline-flex items-center group">
@@ -141,19 +141,19 @@ const MyFiles = () => {
           // Files Grid
           <div>
             <div className="mb-6 flex items-center space-x-2">
-              <FiFilter className="w-5 h-5 text-gray-400" />
-              <p className="text-caption text-gray-600">Showing {files.length} files</p>
+              <FiFilter className="w-5 h-5 text-[var(--text-secondary)]/50" />
+              <p className="text-caption text-[var(--text-secondary)]">Showing {files.length} files</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {files.map((file) => (
                 <div
                   key={file._id}
-                  className="card group cursor-pointer hover:shadow-lg transition-all"
+                  className="card group cursor-pointer hover:shadow-lg transition-all bg-[var(--surface)] border border-[var(--border)]"
                 >
                   {/* File Icon / Preview */}
-                  <div className="w-full h-32 bg-primary/5 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary/10 transition-colors">
-                    <FiFileText className="w-12 h-12 text-primary" />
+                  <div className="w-full h-32 bg-[var(--primary-50)] rounded-lg flex items-center justify-center mb-4 group-hover:bg-[var(--primary-100)] transition-colors">
+                    <FiFileText className="w-12 h-12 text-[var(--primary)]" />
                   </div>
 
                   {/* Storage Type Badge */}
@@ -174,13 +174,13 @@ const MyFiles = () => {
                   </div>
 
                   {/* File Info */}
-                  <h3 className="font-semibold text-gray-900 truncate text-body-sm mb-1">
+                  <h3 className="font-semibold text-[var(--text-primary)] truncate text-body-sm mb-1">
                     {file.outputFileName}
                   </h3>
-                  <p className="text-xs text-gray-600 mb-2">
+                  <p className="text-xs text-[var(--text-secondary)] mb-2">
                     {file.conversionType?.toUpperCase()}
                   </p>
-                  <p className="text-xs text-gray-500 mb-4">
+                  <p className="text-xs text-[var(--text-secondary)] mb-4">
                     {formatFileSize(file.fileSize)} • {formatDate(file.createdAt)}
                   </p>
 
@@ -197,7 +197,7 @@ const MyFiles = () => {
                         e.preventDefault();
                         handleDelete(file._id);
                       }}
-                      className="px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                      className="px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
                     >
                       <FiTrash2 className="w-4 h-4" />
                     </button>

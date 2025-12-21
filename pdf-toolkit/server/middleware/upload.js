@@ -16,8 +16,10 @@ const localStorage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
+    const originalName = path.parse(file.originalname).name;
+    const extension = path.extname(file.originalname);
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    cb(null, `${originalName}-pdf-swift-${uniqueSuffix}${extension}`);
   }
 });
 

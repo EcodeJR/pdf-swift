@@ -6,7 +6,6 @@ import VideoAdModal from '../../components/VideoAdModal';
 import AdBanner from '../../components/AdBanner';
 import { conversionAPI } from '../../services/api';
 import { FiDownload, FiLoader, FiFileText } from 'react-icons/fi';
-import { GridPattern } from '../../components/GridPattern';
 
 const ExcelToPdf = () => {
   const { user } = useAuth();
@@ -44,13 +43,7 @@ const ExcelToPdf = () => {
 
 
   return (
-    <div className="relative min-h-screen bg-secondary-50">
-      {/* Grid Pattern Background */}
-      <GridPattern
-        className="absolute inset-0 stroke-primary-200/20 [mask-image:radial-gradient(white,transparent_85%)]"
-        width={60}
-        height={60}
-      />
+    <div className="relative min-h-screen bg-gray-50">
       {/* Header Ad Banner */}
       {(!user || !user.isPremium) && (
         <div className="bg-gray-100 py-2">

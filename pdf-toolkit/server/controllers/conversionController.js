@@ -7,6 +7,7 @@ const { Document, Paragraph, TextRun, Packer } = require('docx');
 const xlsx = require('xlsx');
 const sharp = require('sharp');
 const PDFDocument2 = require('pdfkit');
+const muhammara = require('muhammara');
 const { convert } = require('pdf-poppler');
 const { exec } = require('child_process');
 const execAsync = require('util').promisify(exec);
@@ -17,6 +18,31 @@ const User = require('../models/User');
 const { lockFileWithTimeout, unlockFile } = require('../utils/fileManager');
 const { streamFromGridFS } = require('../utils/gridfsHelper');
 const { handleFileStorage, cleanupFile, validateStorageRequest, getStorageMetadata } = require('../utils/conversionHelper');
+
+// Helper to calculate protection flag
+const calculateProtectionFlag = (permissions) => {
+  if (!permissions) return 4; // Default: Print allowed (Bit 3)
+
+  let flag = 0;
+  // Bit 3: Print
+  if (permissions.print) flag |= 4;
+  // Bit 4: Modify
+  if (permissions.modify) flag |= 8;
+  // Bit 5: Copy/Extract
+  if (permissions.copy) flag |= 16;
+  // Bit 6: Add/Modify Annotations
+  if (permissions.annotate) flag |= 32;
+  // Bit 9: Fill Forms
+  if (permissions.fillForms) flag |= 256;
+  // Bit 10: Extract for accessibility
+  if (permissions.accessibility) flag |= 512;
+  // Bit 11: Assemble
+  if (permissions.assemble) flag |= 1024;
+  // Bit 12: High Res Print
+  if (permissions.highResPrint) flag |= 2048;
+
+  return flag;
+};
 
 // Helper function to track conversion
 const trackConversion = async (userId, ipAddress, conversionType, originalFileName, outputFileName, fileSize, storageType, gridFsFileId = null) => {
@@ -97,7 +123,7 @@ exports.pdfToWord = async (req, res) => {
     });
 
     const buffer = await Packer.toBuffer(doc);
-    const outputFileName = req.file.filename.replace('.pdf', '.docx');
+    const outputFileName = req.file.filename.replace(path.extname(req.file.filename), "") + ".docx";
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
 
     await fs.writeFile(outputPath, buffer);
@@ -153,7 +179,7 @@ exports.pdfToExcel = async (req, res) => {
     const ws = xlsx.utils.aoa_to_sheet(data);
     xlsx.utils.book_append_sheet(wb, ws, 'Sheet1');
 
-    const outputFileName = req.file.filename.replace('.pdf', '.xlsx');
+    const outputFileName = req.file.filename.replace(path.extname(req.file.filename), "") + ".xlsx";
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
 
     xlsx.writeFile(wb, outputPath);
@@ -201,7 +227,7 @@ exports.compressPdf = async (req, res) => {
     }
 
     const { compressionLevel } = req.body; // 'basic' or 'strong'
-    const outputFileName = req.file.filename.replace('.pdf', '-compressed.pdf');
+    const outputFileName = req.file.filename.replace(path.extname(req.file.filename), "") + "-compressed.pdf";
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
     let compressedBytes;
     let originalSize;
@@ -356,7 +382,7 @@ exports.mergePdf = async (req, res) => {
     }
 
     const mergedBytes = await mergedPdf.save();
-    const outputFileName = `merged-${Date.now()}.pdf`;
+    const outputFileName = `merged-pdf-swift-${Date.now()}.pdf`;
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
 
     await fs.writeFile(outputPath, mergedBytes);
@@ -433,7 +459,7 @@ exports.splitPdf = async (req, res) => {
     copiedPages.forEach(page => newPdf.addPage(page));
 
     const splitBytes = await newPdf.save();
-    const outputFileName = req.file.filename.replace('.pdf', `-split.pdf`);
+    const outputFileName = req.file.filename.replace(path.extname(req.file.filename), "") + "-split.pdf";
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
 
     await fs.writeFile(outputPath, splitBytes);
@@ -517,7 +543,7 @@ exports.jpgToPdf = async (req, res) => {
     }
 
     const pdfBytes = await pdfDoc.save();
-    const outputFileName = `converted-${Date.now()}.pdf`;
+    const outputFileName = `converted-pdf-swift-${Date.now()}.pdf`;
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
 
     await fs.writeFile(outputPath, pdfBytes);
@@ -625,8 +651,14 @@ exports.pdfToJpg = async (req, res) => {
     }
 
     // Use the first image as the primary output
-    const outputFileName = imageFiles[0];
+    const originalName = path.parse(req.file.originalname).name;
+    const outputFileName = `${originalName}-pdf-swift-1.jpg`; // Use first page
     const outputPath = path.join(outputDir, outputFileName);
+
+    // Rename the generated file to match our target name if needed
+    if (imageFiles[0] !== outputFileName) {
+      await fs.rename(path.join(outputDir, imageFiles[0]), outputPath);
+    }
     const stats = await fs.stat(outputPath);
 
     // Track conversion
@@ -684,7 +716,7 @@ exports.wordToPdf = async (req, res) => {
     }
 
     const outputDir = path.join(__dirname, '../uploads');
-    const outputFileName = req.file.filename.replace(/\.(docx|doc)$/i, '.pdf');
+    const outputFileName = req.file.filename.replace(path.extname(req.file.filename), "") + ".pdf";
     const outputPath = path.join(outputDir, outputFileName);
 
     // Convert to PDF using direct soffice execution
@@ -786,8 +818,8 @@ exports.excelToPdf = async (req, res) => {
       });
     }
 
-    const outputDir = path.join(__dirname, '../uploads');
-    const outputFileName = req.file.filename.replace(/\.(xlsx|xls)$/i, '.pdf');
+    const outputDir = path.join(path.parse(__dirname).dir, 'uploads');
+    const outputFileName = req.file.filename.replace(path.extname(req.file.filename), "") + ".pdf";
     const outputPath = path.join(outputDir, outputFileName);
 
     // Convert to PDF using direct soffice execution
@@ -1168,7 +1200,7 @@ exports.editPdf = async (req, res) => {
 
     // Save the edited PDF
     const editedPdfBytes = await pdfDoc.save();
-    const outputFileName = req.file.filename.replace('.pdf', '-edited.pdf');
+    const outputFileName = req.file.filename.replace(path.extname(req.file.filename), "") + "-edited.pdf";
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
 
     await fs.writeFile(outputPath, editedPdfBytes);
@@ -1210,6 +1242,353 @@ exports.editPdf = async (req, res) => {
       message: 'Error editing PDF. Please ensure the PDF is valid and editing instructions are correct.',
       error: error.message
     });
+  }
+};
+
+// Protect PDF
+exports.protectPdf = async (req, res) => {
+  const startTime = Date.now();
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required' });
+    }
+
+    const outputFileName = req.file.filename.replace(path.extname(req.file.filename), "") + "-protected.pdf";
+    const outputPath = path.join(__dirname, '../uploads', outputFileName);
+
+    // Use muhammara for encryption
+    try {
+      muhammara.recrypt(req.file.path, outputPath, {
+        userPassword: password,
+        ownerPassword: password,
+        userProtectionFlag: calculateProtectionFlag(typeof req.body.permissions === 'string' ? JSON.parse(req.body.permissions) : req.body.permissions)
+      });
+    } catch (e) {
+      throw new Error('Encryption failed: ' + e.message);
+    }
+
+    const stats = await fs.stat(outputPath);
+
+    // Track conversion
+    const ip = req.ip || req.connection.remoteAddress;
+    await trackConversion(
+      req.user ? req.user._id : null,
+      ip,
+      'protect-pdf',
+      req.file.originalname,
+      outputFileName,
+      stats.size,
+      req.body.storageType || 'temporary'
+    );
+
+    // Clean up original PDF
+    await fs.unlink(req.file.path);
+
+    const conversionTime = Date.now() - startTime;
+
+    res.json({
+      message: 'PDF protected successfully',
+      downloadUrl: `/api/convert/download/${outputFileName}`,
+      fileName: outputFileName,
+      fileSize: stats.size,
+      conversionTime
+    });
+  } catch (error) {
+    console.error('Protect PDF error:', error);
+    res.status(500).json({ message: 'Error protecting PDF', error: error.message });
+  }
+};
+
+// Watermark PDF
+exports.watermarkPdf = async (req, res) => {
+  const startTime = Date.now();
+
+  try {
+    if (!req.files || !req.files.file) {
+      return res.status(400).json({ message: 'No PDF file uploaded' });
+    }
+
+    const pdfFile = req.files.file[0];
+    const pdfBuffer = await fs.readFile(pdfFile.path);
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const pages = pdfDoc.getPages();
+
+    const {
+      type, // 'text' or 'image'
+      text,
+      color = '#000000',
+      opacity = 0.5,
+      size = 50,
+      rotation = 0,
+      imageScale = 0.5
+    } = req.body;
+
+    if (type === 'text') {
+      if (!text) return res.status(400).json({ message: 'Watermark text is required' });
+
+      const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      // Parse hex color
+      const r = parseInt(color.slice(1, 3), 16) / 255;
+      const g = parseInt(color.slice(3, 5), 16) / 255;
+      const b = parseInt(color.slice(5, 7), 16) / 255;
+
+      const textWidth = font.widthOfTextAtSize(text, Number(size));
+      const textHeight = font.heightAtSize(Number(size));
+
+      pages.forEach(page => {
+        const { width, height } = page.getSize();
+        let x, y;
+
+        if (req.body.x !== undefined && req.body.y !== undefined) {
+          x = Number(req.body.x);
+          y = Number(req.body.y);
+        } else {
+          const position = req.body.position || 'center';
+          const margin = 20;
+
+          switch (position) {
+            case 'top-left':
+              x = margin;
+              y = height - margin - textHeight;
+              break;
+            case 'top-center':
+              x = (width - textWidth) / 2;
+              y = height - margin - textHeight;
+              break;
+            case 'top-right':
+              x = width - margin - textWidth;
+              y = height - margin - textHeight;
+              break;
+            case 'middle-left':
+              x = margin;
+              y = (height - textHeight) / 2;
+              break;
+            case 'middle-right':
+              x = width - margin - textWidth;
+              y = (height - textHeight) / 2;
+              break;
+            case 'bottom-left':
+              x = margin;
+              y = margin;
+              break;
+            case 'bottom-center':
+              x = (width - textWidth) / 2;
+              y = margin;
+              break;
+            case 'bottom-right':
+              x = width - margin - textWidth;
+              y = margin;
+              break;
+            case 'center':
+            default:
+              x = (width - textWidth) / 2;
+              y = (height - textHeight) / 2;
+              break;
+          }
+        }
+
+        page.drawText(text, {
+          x: x,
+          y: y,
+          size: Number(size),
+          font: font,
+          color: rgb(r, g, b),
+          opacity: Number(opacity),
+          rotate: degrees(Number(rotation)),
+        });
+      });
+
+    } else if (type === 'image') {
+      if (!req.files.watermarkImage) {
+        return res.status(400).json({ message: 'Watermark image is required' });
+      }
+
+      const imageFile = req.files.watermarkImage[0];
+      const imageBuffer = await fs.readFile(imageFile.path);
+      let image;
+
+      if (imageFile.mimetype === 'image/png') {
+        image = await pdfDoc.embedPng(imageBuffer);
+      } else {
+        image = await pdfDoc.embedJpg(imageBuffer);
+      }
+
+      const scaledWidth = image.width * Number(imageScale);
+      const scaledHeight = image.height * Number(imageScale);
+
+      pages.forEach(page => {
+        const { width, height } = page.getSize();
+        let x, y;
+
+        if (req.body.x !== undefined && req.body.y !== undefined) {
+          x = Number(req.body.x);
+          y = Number(req.body.y);
+        } else {
+          const position = req.body.position || 'center';
+          const margin = 20;
+
+          switch (position) {
+            case 'top-left':
+              x = margin;
+              y = height - margin - scaledHeight;
+              break;
+            case 'top-center':
+              x = (width - scaledWidth) / 2;
+              y = height - margin - scaledHeight;
+              break;
+            case 'top-right':
+              x = width - margin - scaledWidth;
+              y = height - margin - scaledHeight;
+              break;
+            case 'middle-left':
+              x = margin;
+              y = (height - scaledHeight) / 2;
+              break;
+            case 'middle-right':
+              x = width - margin - scaledWidth;
+              y = (height - scaledHeight) / 2;
+              break;
+            case 'bottom-left':
+              x = margin;
+              y = margin;
+              break;
+            case 'bottom-center':
+              x = (width - scaledWidth) / 2;
+              y = margin;
+              break;
+            case 'bottom-right':
+              x = width - margin - scaledWidth;
+              y = margin;
+              break;
+            case 'center':
+            default:
+              x = (width - scaledWidth) / 2;
+              y = (height - scaledHeight) / 2;
+              break;
+          }
+        }
+
+        page.drawImage(image, {
+          x: x,
+          y: y,
+          width: scaledWidth,
+          height: scaledHeight,
+          opacity: Number(opacity),
+          rotate: degrees(Number(rotation)),
+        });
+      });
+
+      // Cleanup image file
+      await fs.unlink(imageFile.path);
+    }
+
+    const watermarkedBytes = await pdfDoc.save();
+    const outputFileName = pdfFile.filename.replace(path.extname(pdfFile.filename), "") + "-watermarked.pdf";
+    const outputPath = path.join(__dirname, '../uploads', outputFileName);
+
+    await fs.writeFile(outputPath, watermarkedBytes);
+
+    // Track conversion
+    const ip = req.ip || req.connection.remoteAddress;
+    await trackConversion(
+      req.user ? req.user._id : null,
+      ip,
+      'watermark-pdf',
+      pdfFile.originalname,
+      outputFileName,
+      watermarkedBytes.length,
+      req.body.storageType || 'temporary'
+    );
+
+    // Clean up original PDF
+    await fs.unlink(pdfFile.path);
+
+    const conversionTime = Date.now() - startTime;
+
+    res.json({
+      message: 'Watermark added successfully',
+      downloadUrl: `/api/convert/download/${outputFileName}`,
+      fileName: outputFileName,
+      fileSize: watermarkedBytes.length,
+      conversionTime
+    });
+
+  } catch (error) {
+    console.error('Watermark PDF error:', error);
+    res.status(500).json({ message: 'Error adding watermark', error: error.message });
+  }
+};
+
+// Unlock PDF
+// Unlock PDF
+exports.unlockPdf = async (req, res) => {
+  const startTime = Date.now();
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required' });
+    }
+
+    const outputFileName = req.file.filename.replace(path.extname(req.file.filename), "") + "-unlocked.pdf";
+    const outputPath = path.join(__dirname, '../uploads', outputFileName);
+
+    // Use muhammara to unlock (create new PDF and copy pages from encrypted source)
+    try {
+      const writer = muhammara.createWriter(outputPath);
+      // appendPDFPagesFromPDF throws if password is wrong or file invalid
+      writer.appendPDFPagesFromPDF(req.file.path, { password });
+      writer.end();
+    } catch (e) {
+      // Check if encryption related (wrong password usually throws 'unable to append page')
+      if (e.message && e.message.includes('unable to append page')) {
+        console.warn(`Unlock PDF failed: Incorrect password provided for file ${req.file.originalname}`);
+        return res.status(400).json({ message: 'Incorrect password' });
+      }
+      console.error('Muhammara unlock error:', e);
+      return res.status(400).json({ message: 'Incorrect password or invalid PDF' });
+    }
+
+    const stats = await fs.stat(outputPath);
+
+    // Track conversion
+    const ip = req.ip || req.connection.remoteAddress;
+    await trackConversion(
+      req.user ? req.user._id : null,
+      ip,
+      'unlock-pdf',
+      req.file.originalname,
+      outputFileName,
+      stats.size,
+      req.body.storageType || 'temporary'
+    );
+
+    // Clean up original PDF
+    await fs.unlink(req.file.path);
+
+    const conversionTime = Date.now() - startTime;
+
+    res.json({
+      message: 'PDF unlocked successfully',
+      downloadUrl: `/api/convert/download/${outputFileName}`,
+      fileName: outputFileName,
+      fileSize: stats.size,
+      conversionTime
+    });
+
+  } catch (error) {
+    console.error('Unlock PDF error:', error);
+    res.status(500).json({ message: 'Error unlocking PDF', error: error.message });
   }
 };
 

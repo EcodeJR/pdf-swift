@@ -16,8 +16,10 @@ function GridPattern({
     return (
         <svg
             aria-hidden="true"
+            stroke="currentColor"
+            fill="none"
             className={cn(
-                "pointer-events-none absolute inset-0 h-full w-full fill-gray-400/30 stroke-gray-400/30",
+                "pointer-events-none absolute inset-0 h-full w-full",
                 className
             )}
             {...props}
@@ -34,6 +36,8 @@ function GridPattern({
                     <path
                         d={`M.5 ${height}V.5H${width}`}
                         fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1"
                         strokeDasharray={strokeDasharray}
                     />
                 </pattern>

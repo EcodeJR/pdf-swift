@@ -5,9 +5,40 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --primary: #043222;
+    --primary-50: #E8F5F0;
+    --primary-100: #D1EBE1;
+    --primary-600: #03281B;
+    --secondary: #F6E9D9;
+    --background: #F8F9FA;
+    --surface: #FFFFFF;
+    --text-primary: #0A0A0A;
+    --text-secondary: #4B5563;
+    --border: #E5E5E5;
+    --shadow-primary: 0 4px 20px rgba(4, 50, 34, 0.3);
+    --shadow-primary-lg: 0 6px 20px rgba(4, 50, 34, 0.4);
+  }
+
+  .dark {
+    --primary: #47AF87;
+    --primary-50: #0D2D21;
+    --primary-100: #143D2E;
+    --primary-600: #58C49A;
+    --secondary: #2C2620;
+    --background: #050505;
+    --surface: #0A0A0A;
+    --text-primary: #F9FAFB;
+    --text-secondary: #9CA3AF;
+    --border: #1F2937;
+    --shadow-primary: 0 4px 20px rgba(71, 175, 135, 0.15);
+    --shadow-primary-lg: 0 6px 20px rgba(71, 175, 135, 0.2);
+  }
+
   body {
-    @apply font-sans antialiased;
+    @apply font-sans antialiased text-[var(--text-primary)] bg-[var(--background)];
     margin: 0;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   code {
@@ -16,26 +47,27 @@
 }
 
 @layer components {
+
   /* Button Components */
   .btn-primary {
-    @apply bg-primary text-white px-8 py-4 rounded-md font-semibold text-body-sm;
-    @apply shadow-primary hover:bg-primary-600 hover:-translate-y-0.5 hover:shadow-primary-lg;
+    @apply bg-[var(--primary)] text-[var(--background)] px-8 py-4 rounded-md font-semibold text-body-sm;
+    @apply shadow-primary hover:brightness-110 hover:-translate-y-0.5 hover:shadow-primary-lg;
     @apply transition-all duration-300 ease-smooth cursor-pointer border-none;
   }
 
   .btn-secondary {
-    @apply bg-transparent text-primary border-2 border-primary px-7 py-3.5 rounded-md font-semibold;
-    @apply hover:bg-primary hover:text-white transition-all duration-300 ease-smooth;
+    @apply bg-transparent text-[var(--primary)] border-2 border-[var(--primary)] px-7 py-3.5 rounded-md font-semibold;
+    @apply hover:bg-[var(--primary)] hover:text-[var(--background)] transition-all duration-300 ease-smooth;
   }
 
   .btn-icon {
-    @apply w-12 h-12 rounded-full bg-primary flex items-center justify-center;
-    @apply border-none cursor-pointer hover:bg-primary-600 transition-all duration-300;
+    @apply w-12 h-12 rounded-full bg-[var(--primary)] flex items-center justify-center text-[var(--background)];
+    @apply border-none cursor-pointer hover:brightness-110 transition-all duration-300;
   }
 
   /* Card Components */
   .card {
-    @apply bg-white rounded-lg p-6 shadow-sm;
+    @apply bg-[var(--surface)] border border-[var(--border)] rounded-lg p-6 shadow-sm;
     @apply hover:-translate-y-1 hover:shadow-md transition-all duration-300 ease-smooth;
   }
 
@@ -45,24 +77,24 @@
   }
 
   .feature-card {
-    @apply bg-white rounded-lg p-8 relative overflow-hidden;
+    @apply bg-[var(--surface)] border border-[var(--border)] rounded-lg p-8 relative overflow-hidden;
     @apply hover:-translate-y-1 hover:shadow-md transition-all duration-300 ease-smooth;
   }
 
   .icon-wrapper {
-    @apply w-14 h-14 bg-primary/10 rounded-md flex items-center justify-center mb-4;
+    @apply w-14 h-14 bg-[var(--primary-50)] rounded-md flex items-center justify-center mb-4;
   }
 
   /* Input Components */
   .input-field {
-    @apply w-full px-5 py-4 rounded-md border-2 border-light-200 bg-white text-body-sm;
-    @apply focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10;
-    @apply transition-all duration-300 ease-smooth;
+    @apply w-full px-5 py-4 rounded-md border-2 border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] text-body-sm;
+    @apply focus:border-[var(--primary)] focus:outline-none focus:ring-4 focus:ring-[var(--primary-100)];
+    @apply transition-all duration-300 ease-smooth placeholder:text-[var(--text-secondary)];
   }
 
   .upload-zone {
-    @apply bg-primary-50 border-2 border-dashed border-primary rounded-lg p-16 text-center;
-    @apply hover:bg-primary-100 hover:border-solid transition-all duration-300 ease-smooth cursor-pointer;
+    @apply bg-[var(--primary-50)] border-2 border-dashed border-[var(--primary)] rounded-lg p-16 text-center;
+    @apply hover:bg-[var(--primary-100)] hover:border-solid transition-all duration-300 ease-smooth cursor-pointer;
   }
 
   /* Section Components */
@@ -71,11 +103,12 @@
   }
 
   .section-hero {
-    @apply py-24 px-6 bg-gradient-to-br from-primary-600 to-primary text-white text-center;
+    @apply py-24 px-6 bg-gradient-to-br from-[var(--primary-600)] to-[var(--primary)] text-[var(--background)] text-center;
   }
 }
 
 @layer utilities {
+
   /* Text balance utility - for modern browsers only */
   @supports (text-wrap: balance) {
     .text-balance {
@@ -94,10 +127,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #4D4DFF;
+  background: var(--primary);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3B3BCC;
+  background: var(--primary-600);
 }

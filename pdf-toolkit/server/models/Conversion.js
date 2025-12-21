@@ -23,7 +23,11 @@ const conversionSchema = new mongoose.Schema({
       'compress-pdf',
       'merge-pdf',
       'split-pdf',
-      'edit-pdf'
+      'edit-pdf',
+      'protect-pdf',
+      'unlock-pdf',
+      'watermark-pdf',
+      'sign-pdf'
     ]
   },
   originalFileName: {

@@ -59,20 +59,25 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="relative min-h-screen bg-secondary-50">
+    <div className="relative min-h-screen bg-[var(--background)]">
       {/* Grid Pattern Background */}
       <GridPattern
-        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)] opacity-20"
         width={60}
         height={60}
       />
       {/* Gradient Header */}
-      <div className="bg-gradient-to-br from-primary-600 to-primary text-white py-16">
+      <div className="bg-gradient-to-br from-[var(--primary-600)] to-[var(--primary)] text-[var(--background)] py-16">
+        <GridPattern
+          className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)] opacity-20"
+          width={60}
+          height={60}
+        />
         <div className="max-w-7xl mx-auto px-6">
           <h1 className="text-hero font-bold mb-2">
             Welcome back, {user?.name || user?.email?.split('@')[0]}!
           </h1>
-          <p className="text-body text-white/90">
+          <p className="text-body text-[var(--background)]/90">
             Here's your activity overview
           </p>
         </div>
@@ -85,11 +90,11 @@ const Dashboard = () => {
           <div className="card bg-white hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-caption text-gray-600 mb-1">Total Conversions</p>
-                <p className="text-3xl font-bold text-gray-900">{stats?.conversionsThisMonth || 0}</p>
+                <p className="text-caption text-[var(--text-secondary)] mb-1">Total Conversions</p>
+                <p className="text-3xl font-bold text-[var(--text-primary)]">{stats?.conversionsThisMonth || 0}</p>
               </div>
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <FiFileText className="w-6 h-6 text-primary" />
+              <div className="w-12 h-12 bg-[var(--primary)]/10 rounded-lg flex items-center justify-center">
+                <FiFileText className="w-6 h-6 text-[var(--primary)]" />
               </div>
             </div>
           </div>
@@ -98,8 +103,8 @@ const Dashboard = () => {
           <div className="card bg-white hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-caption text-gray-600 mb-1">Files Stored</p>
-                <p className="text-3xl font-bold text-gray-900">{stats?.filesStored || 0}</p>
+                <p className="text-caption text-[var(--text-secondary)] mb-1">Files Stored</p>
+                <p className="text-3xl font-bold text-[var(--text-primary)]">{stats?.filesStored || 0}</p>
               </div>
               <div className="w-12 h-12 bg-blue/10 rounded-lg flex items-center justify-center">
                 <FiHardDrive className="w-6 h-6 text-blue-600" />
@@ -111,8 +116,8 @@ const Dashboard = () => {
           <div className="card bg-white hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-caption text-gray-600 mb-1">This Month</p>
-                <p className="text-3xl font-bold text-gray-900">{stats?.conversionsThisMonth || 0}</p>
+                <p className="text-caption text-[var(--text-secondary)] mb-1">This Month</p>
+                <p className="text-3xl font-bold text-[var(--text-primary)]">{stats?.conversionsThisMonth || 0}</p>
               </div>
               <div className="w-12 h-12 bg-green/10 rounded-lg flex items-center justify-center">
                 <FiTrendingUp className="w-6 h-6 text-green-600" />
@@ -124,8 +129,8 @@ const Dashboard = () => {
           <div className="card bg-white hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-caption text-gray-600 mb-1">Account Type</p>
-                <p className="text-3xl font-bold text-gray-900">{user?.isPremium ? 'Premium' : 'Free'}</p>
+                <p className="text-caption text-[var(--text-secondary)] mb-1">Account Type</p>
+                <p className="text-3xl font-bold text-[var(--text-primary)]">{user?.isPremium ? 'Premium' : 'Free'}</p>
               </div>
               <div className="w-12 h-12 bg-yellow/10 rounded-lg flex items-center justify-center">
                 <FiStar className="w-6 h-6 text-yellow-600" />
@@ -139,24 +144,24 @@ const Dashboard = () => {
       <div className="max-w-7xl mx-auto px-6 pb-8 relative z-10">
         {/* Conversion Limit Section */}
         <div className="section mb-8">
-          <h2 className="text-heading font-bold mb-6">Your Limits</h2>
-          <div className="card bg-white">
+          <h2 className="text-heading font-bold mb-6 text-[var(--text-primary)]">Your Limits</h2>
+          <div className="card bg-[var(--surface)] border border-[var(--border)]">
             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-2">
-                  <FiClock className="w-6 h-6 text-primary" />
+                  <FiClock className="w-6 h-6 text-[var(--primary)]" />
                   <div>
-                    <h3 className="text-body font-semibold text-gray-900">Conversions This Hour</h3>
-                    <p className="text-caption text-gray-600 mt-1">
+                    <h3 className="text-body font-semibold text-[var(--text-primary)]">Conversions This Hour</h3>
+                    <p className="text-caption text-[var(--text-secondary)] mt-1">
                       {user?.isPremium ? 'Unlimited conversions' : `${stats?.conversionsThisHour || 0} / 5 used`}
                     </p>
                   </div>
                 </div>
                 {!user?.isPremium && (
                   <div className="mt-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-[var(--border)] rounded-full h-2">
                       <div
-                        className="bg-primary h-2 rounded-full transition-all"
+                        className="bg-[var(--primary)] h-2 rounded-full transition-all"
                         style={{ width: `${((stats?.conversionsThisHour || 0) / 5) * 100}%` }}
                       ></div>
                     </div>
@@ -177,48 +182,48 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <div className="section mb-8">
-          <h2 className="text-heading font-bold mb-6">Quick Actions</h2>
+          <h2 className="text-heading font-bold mb-6 text-[var(--text-primary)]">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Link
               to="/"
-              className="card group cursor-pointer hover:shadow-lg transition-shadow"
+              className="card group cursor-pointer hover:shadow-lg transition-shadow bg-[var(--surface)] border border-[var(--border)]"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <FiZap className="w-6 h-6 text-primary" />
+                <div className="w-12 h-12 bg-[var(--primary)]/10 rounded-lg flex items-center justify-center">
+                  <FiZap className="w-6 h-6 text-[var(--primary)]" />
                 </div>
-                <FiArrowRight className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
+                <FiArrowRight className="w-5 h-5 text-[var(--text-secondary)]/50 group-hover:text-[var(--primary)] transition-colors" />
               </div>
-              <h3 className="text-body font-semibold text-gray-900">Convert Files</h3>
-              <p className="text-caption text-gray-600 mt-2">Start a new conversion</p>
+              <h3 className="text-body font-semibold text-[var(--text-primary)]">Convert Files</h3>
+              <p className="text-caption text-[var(--text-secondary)] mt-2">Start a new conversion</p>
             </Link>
 
             <Link
               to="/my-files"
-              className="card group cursor-pointer hover:shadow-lg transition-shadow"
+              className="card group cursor-pointer hover:shadow-lg transition-shadow bg-[var(--surface)] border border-[var(--border)]"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 bg-blue/10 rounded-lg flex items-center justify-center">
                   <FiFileText className="w-6 h-6 text-blue-600" />
                 </div>
-                <FiArrowRight className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
+                <FiArrowRight className="w-5 h-5 text-[var(--text-secondary)]/50 group-hover:text-[var(--primary)] transition-colors" />
               </div>
-              <h3 className="text-body font-semibold text-gray-900">My Files</h3>
-              <p className="text-caption text-gray-600 mt-2">View your conversions</p>
+              <h3 className="text-body font-semibold text-[var(--text-primary)]">My Files</h3>
+              <p className="text-caption text-[var(--text-secondary)] mt-2">View your conversions</p>
             </Link>
 
             <Link
               to="/settings"
-              className="card group cursor-pointer hover:shadow-lg transition-shadow"
+              className="card group cursor-pointer hover:shadow-lg transition-shadow bg-[var(--surface)] border border-[var(--border)]"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 bg-green/10 rounded-lg flex items-center justify-center">
                   <FiHardDrive className="w-6 h-6 text-green-600" />
                 </div>
-                <FiArrowRight className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
+                <FiArrowRight className="w-5 h-5 text-[var(--text-secondary)]/50 group-hover:text-[var(--primary)] transition-colors" />
               </div>
-              <h3 className="text-body font-semibold text-gray-900">Settings</h3>
-              <p className="text-caption text-gray-600 mt-2">Manage your account</p>
+              <h3 className="text-body font-semibold text-[var(--text-primary)]">Settings</h3>
+              <p className="text-caption text-[var(--text-secondary)] mt-2">Manage your account</p>
             </Link>
           </div>
         </div>
@@ -226,10 +231,10 @@ const Dashboard = () => {
         {/* Premium CTA - if not premium */}
         {!user?.isPremium && (
           <div className="section">
-            <div className="card bg-gradient-to-br from-primary-600 to-primary text-white">
+            <div className="card bg-gradient-to-br from-[var(--primary-600)] to-[var(--primary)] text-[var(--background)]">
               <div className="flex flex-col md:flex-row items-center gap-6 justify-between">
                 <div className="flex-1">
-                  <h3 className="text-heading font-bold mb-2">Unlock Premium</h3>
+                  <h3 className="text-heading font-bold mb-2 text-[var(--background)]">Unlock Premium</h3>
                   <p className="text-body text-white/90 mb-4">
                     Get unlimited conversions, batch processing, and no ads.
                   </p>
@@ -247,7 +252,7 @@ const Dashboard = () => {
                 </div>
                 <Link
                   to="/pricing"
-                  className="ml-6 px-8 py-3 bg-white text-primary font-semibold rounded-lg hover:bg-gray-100 transition-colors flex items-center group whitespace-nowrap"
+                  className="ml-6 px-8 py-3 bg-[var(--background)] text-[var(--primary)] font-semibold rounded-lg hover:brightness-110 transition-colors flex items-center group whitespace-nowrap"
                 >
                   Upgrade
                   <FiArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />

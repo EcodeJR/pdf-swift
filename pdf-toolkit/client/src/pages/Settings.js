@@ -4,9 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import { paymentAPI, userAPI } from '../services/api';
 import { FiUser, FiLock, FiStar, FiToggleRight, FiToggleLeft, FiAlertCircle, FiSave, FiX } from 'react-icons/fi';
 import { GridPattern } from '../components/GridPattern';
+import { useTheme } from '../context/ThemeContext';
 
 const Settings = () => {
   const { user, refreshUser, logout } = useAuth();
+  const { theme, toggleTheme, setExplicitTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   const [editName, setEditName] = useState(user?.name || '');
@@ -125,6 +127,11 @@ const Settings = () => {
     try {
       await userAPI.updatePreferences({ [key]: newPreferences[key] });
       toast.success('Preference updated');
+
+      // If dark mode was toggled, update the theme context immediately
+      if (key === 'darkMode') {
+        setExplicitTheme(newPreferences.darkMode ? 'dark' : 'light');
+      }
     } catch (error) {
       // Revert on error
       setPreferences(preferences);
@@ -133,17 +140,22 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--text-primary)] transition-colors duration-300">
       <GridPattern
-        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)] opacity-20"
         width={60}
         height={60}
       />
       {/* Header */}
-      <div className="bg-white border-b relative z-10">
+      <div className="bg-[var(--surface)] border-b border-[var(--border)] relative z-10">
+        <GridPattern
+          className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)] opacity-20"
+          width={60}
+          height={60}
+        />
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <h1 className="text-hero font-bold">Settings</h1>
-          <p className="text-body-sm text-gray-600 mt-1">Manage your account settings</p>
+          <h1 className="text-hero font-bold text-[var(--text-primary)]">Settings</h1>
+          <p className="text-body-sm text-[var(--text-secondary)] mt-1">Manage your account settings</p>
         </div>
       </div>
 
@@ -152,7 +164,7 @@ const Settings = () => {
         <div className="flex space-x-4 border-b mb-8 overflow-x-auto">
           <button
             onClick={() => setActiveTab('profile')}
-            className={`pb-4 px-2 font-semibold whitespace-nowrap transition-colors ${activeTab === 'profile' ? 'border-b-2 border-primary text-primary' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`pb-4 px-2 font-semibold whitespace-nowrap transition-colors ${activeTab === 'profile' ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
           >
             <div className="flex items-center space-x-2">
               <FiUser className="w-4 h-4" />
@@ -161,7 +173,7 @@ const Settings = () => {
           </button>
           <button
             onClick={() => setActiveTab('security')}
-            className={`pb-4 px-2 font-semibold whitespace-nowrap transition-colors ${activeTab === 'security' ? 'border-b-2 border-primary text-primary' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`pb-4 px-2 font-semibold whitespace-nowrap transition-colors ${activeTab === 'security' ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
           >
             <div className="flex items-center space-x-2">
               <FiLock className="w-4 h-4" />
@@ -170,7 +182,7 @@ const Settings = () => {
           </button>
           <button
             onClick={() => setActiveTab('preferences')}
-            className={`pb-4 px-2 font-semibold whitespace-nowrap transition-colors ${activeTab === 'preferences' ? 'border-b-2 border-primary text-primary' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`pb-4 px-2 font-semibold whitespace-nowrap transition-colors ${activeTab === 'preferences' ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
           >
             <div className="flex items-center space-x-2">
               <FiToggleRight className="w-4 h-4" />
@@ -179,7 +191,7 @@ const Settings = () => {
           </button>
           <button
             onClick={() => setActiveTab('subscription')}
-            className={`pb-4 px-2 font-semibold whitespace-nowrap transition-colors ${activeTab === 'subscription' ? 'border-b-2 border-primary text-primary' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`pb-4 px-2 font-semibold whitespace-nowrap transition-colors ${activeTab === 'subscription' ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
           >
             <div className="flex items-center space-x-2">
               <FiStar className="w-4 h-4" />
@@ -355,22 +367,6 @@ const Settings = () => {
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-body font-semibold text-gray-900">Dark Mode</h4>
-                    <p className="text-caption text-gray-600 mt-1">Use dark mode for better visibility at night</p>
-                  </div>
-                  <button
-                    onClick={() => handlePreferenceChange('darkMode')}
-                    className="focus:outline-none"
-                  >
-                    {preferences.darkMode ? (
-                      <FiToggleRight className="w-8 h-8 text-primary" />
-                    ) : (
-                      <FiToggleLeft className="w-8 h-8 text-gray-400" />
-                    )}
-                  </button>
-                </div>
               </div>
             </div>
           </div>

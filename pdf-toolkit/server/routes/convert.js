@@ -15,6 +15,9 @@ const {
   mergePdf,
   splitPdf,
   editPdf,
+  protectPdf,
+  watermarkPdf,
+  unlockPdf,
   downloadFile,
   downloadCloudFile
 } = require('../controllers/conversionController');
@@ -50,6 +53,12 @@ router.post('/compress-pdf', localUpload.single('file'), compressPdf);
 router.post('/merge-pdf', localUpload.array('files', 10), mergePdf);
 router.post('/split-pdf', localUpload.single('file'), splitPdf);
 router.post('/edit-pdf', localUpload.single('file'), editPdf);
+router.post('/protect-pdf', localUpload.single('file'), protectPdf);
+router.post('/watermark-pdf', localUpload.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'watermarkImage', maxCount: 1 }
+]), watermarkPdf);
+router.post('/unlock-pdf', localUpload.single('file'), unlockPdf);
 
 // Download routes
 router.get('/download/:filename', downloadFile);

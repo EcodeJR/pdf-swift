@@ -6,7 +6,7 @@ const TermsOfService = () => {
     return (
         <div className="relative min-h-screen bg-secondary-50">
             <GridPattern
-                className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+                className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)] opacity-20"
                 width={60}
                 height={60}
             />
