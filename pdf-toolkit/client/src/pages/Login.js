@@ -43,7 +43,7 @@ const Login = () => {
     <div className="relative min-h-screen bg-secondary-50">
       {/* Grid Pattern Background */}
       <GridPattern
-        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+        className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)] opacity-20"
         width={60}
         height={60}
       />
@@ -156,10 +156,12 @@ const Login = () => {
             }}></div>
           </div>
           <GridPattern
-            className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)]"
+            className="absolute inset-0 stroke-primary-200/40 [mask-image:radial-gradient(white,transparent_85%)] opacity-20"
             width={60}
             height={60}
           />
+
+
 
           <div className="relative z-10 max-w-md">
             <h3 className="text-3xl font-bold mb-6">

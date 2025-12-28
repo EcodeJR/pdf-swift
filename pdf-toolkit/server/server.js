@@ -179,21 +179,7 @@ cron.schedule('0 * * * *', async () => {
   }
 });
 
-// Manual cleanup for testing
-app.post('/api/cleanup', async (req, res) => {
-  try {
-    const uploadsPath = path.join(__dirname, 'uploads');
-    const files = await fs.readdir(uploadsPath);
 
-    for (const file of files) {
-      await fs.unlink(path.join(uploadsPath, file));
-    }
-
-    res.json({ message: `Cleaned up ${files.length} files` });
-  } catch (error) {
-    res.status(500).json({ message: 'Cleanup failed', error: error.message });
-  }
-});
 
 // Start server with Socket.io
 const PORT = process.env.PORT || 5000;

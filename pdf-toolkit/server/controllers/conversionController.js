@@ -12,7 +12,11 @@ const { convert } = require('pdf-poppler');
 const { exec } = require('child_process');
 const execAsync = require('util').promisify(exec);
 // LibreOffice path for Windows
-const LIBREOFFICE_PATH = process.env.LIBREOFFICE_PATH || 'C:\\Program Files\\LibreOffice\\program\\soffice.exe';
+// LibreOffice path for Windows/Linux
+const LIBREOFFICE_PATH = process.env.LIBREOFFICE_PATH ||
+  (process.platform === 'win32'
+    ? 'C:\\Program Files\\LibreOffice\\program\\soffice.exe'
+    : '/usr/bin/soffice');
 const Conversion = require('../models/Conversion');
 const User = require('../models/User');
 const { lockFileWithTimeout, unlockFile } = require('../utils/fileManager');
