@@ -1,5 +1,5 @@
 const { addConversionJob, addOcrJob, getJobStatus, conversionQueue, ocrQueue } = require('../utils/jobQueue');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const path = require('path');
 
 // Submit a new conversion job
@@ -17,7 +17,7 @@ exports.submitConversionJob = async (req, res) => {
         }
 
         // Generate unique job ID
-        const jobId = uuidv4();
+        const jobId = crypto.randomUUID();
 
         // Determine priority based on user type
         const priority = req.user?.isPremium ? 'high' : 'normal';
@@ -79,7 +79,7 @@ exports.submitOcrJob = async (req, res) => {
         }
 
         // Generate unique job ID
-        const jobId = uuidv4();
+        const jobId = crypto.randomUUID();
 
         // Determine priority
         const priority = req.user?.isPremium ? 'high' : 'normal';
