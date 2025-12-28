@@ -8,7 +8,7 @@ const xlsx = require('xlsx');
 const sharp = require('sharp');
 const PDFDocument2 = require('pdfkit');
 const muhammara = require('muhammara');
-const { convert } = require('pdf-poppler');
+// const { convert } = require('pdf-poppler'); // [REMOVED] Breaks on Linux
 const { exec } = require('child_process');
 const execAsync = require('util').promisify(exec);
 // LibreOffice path for Windows
@@ -17,6 +17,12 @@ const LIBREOFFICE_PATH = process.env.LIBREOFFICE_PATH ||
   (process.platform === 'win32'
     ? 'C:\\Program Files\\LibreOffice\\program\\soffice.exe'
     : '/usr/bin/soffice');
+
+// Poppler path for Windows/Linux
+const POPPLER_BIN_PATH = process.env.POPPLER_PATH ||
+  (process.platform === 'win32' ? 'pdftoppm' : 'pdftoppm');
+// pdftoppm is usually in the PATH, but users can override via POPPLER_PATH
+
 const Conversion = require('../models/Conversion');
 const User = require('../models/User');
 const { lockFileWithTimeout, unlockFile } = require('../utils/fileManager');
@@ -643,8 +649,19 @@ exports.pdfToJpg = async (req, res) => {
       page: null // Convert all pages
     };
 
-    // Convert PDF to images
-    await convert(pdfPath, opts);
+    // Convert PDF to images using pdftoppm (Linux native & Windows compatible)
+    try {
+      // On Windows, if POPPLER_PATH is provided, use the full path to pdftoppm.exe
+      const pdftoppmExec = process.platform === 'win32' && process.env.POPPLER_PATH
+        ? `"${path.join(process.env.POPPLER_PATH, 'pdftoppm.exe')}"`
+        : POPPLER_BIN_PATH;
+
+      const command = `${pdftoppmExec} -jpeg -r 300 "${pdfPath}" "${path.join(outputDir, baseFileName)}"`;
+      await execAsync(command);
+    } catch (error) {
+      console.error('pdftoppm conversion error:', error.message);
+      throw new Error('Image conversion service failed. Please ensure poppler-utils is installed.');
+    }
 
     // Find generated image files
     const files = await fs.readdir(outputDir);
