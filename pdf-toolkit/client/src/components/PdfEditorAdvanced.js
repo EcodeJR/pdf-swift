@@ -14,6 +14,9 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
   const [scale, setScale] = useState(1.0);
   const [loadError, setLoadError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [showProperties, setShowProperties] = useState(window.innerWidth >= 768);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const containerRef = useRef(null);
 
   // Tools
   const [tool, setTool] = useState('text');
@@ -57,6 +60,28 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
       };
     }
   }, [file]);
+
+  // Handle window resize and initial container width
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        const width = containerRef.current.offsetWidth - 32; // subtracting padding
+        setContainerWidth(width);
+
+        // Auto-scale on mobile
+        if (window.innerWidth < 768 && width > 0) {
+          // Standard PDF page is ~612pts wide. 
+          // We want it to fit the container.
+          const newScale = Math.min(1.2, width / 612);
+          setScale(newScale);
+        }
+      }
+    };
+
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
 
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
@@ -266,16 +291,16 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg max-w-7xl max-h-[95vh] w-full mx-4 flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-lg max-w-7xl max-h-[98vh] sm:max-h-[95vh] w-full flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
-          <h3 className="text-lg font-semibold">Advanced PDF Editor</h3>
-          <div className="flex space-x-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between p-3 sm:p-4 border-b bg-gray-50 gap-3 sm:gap-0">
+          <h3 className="text-base sm:text-lg font-semibold">Advanced PDF Editor</h3>
+          <div className="flex space-x-2 w-full sm:w-auto">
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm sm:text-base"
             >
               {saving && (
                 <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -287,16 +312,69 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
             </button>
             <button
               onClick={onCancel}
-              className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm sm:text-base"
             >
               Cancel
             </button>
           </div>
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
-          {/* Left Toolbar */}
-          <div className="w-20 border-r bg-gray-50 flex flex-col items-center py-4 space-y-2">
+        <div className="flex flex-1 flex-col md:flex-row overflow-hidden">
+          {/* Mobile Tool Selector (Tabs) */}
+          <div className="md:hidden flex flex-wrap bg-gray-50 border-b p-2 gap-2 scrollbar-none">
+            <button
+              onClick={() => setTool('select')}
+              className={`flex-shrink-0 p-2 rounded flex items-center space-x-1 ${tool === 'select' ? 'bg-blue-600 text-white' : 'bg-white border'}`}
+            >
+              <FiEdit2 size={16} />
+              <span className="text-xs">Select</span>
+            </button>
+            <button
+              onClick={() => setTool('text')}
+              className={`flex-shrink-0 p-2 rounded flex items-center space-x-1 ${tool === 'text' ? 'bg-blue-600 text-white' : 'bg-white border'}`}
+            >
+              <FiType size={16} />
+              <span className="text-xs">Text</span>
+            </button>
+            <button
+              onClick={() => { setTool('image'); fileInputRef.current?.click(); }}
+              className={`flex-shrink-0 p-2 rounded flex items-center space-x-1 ${tool === 'image' ? 'bg-blue-600 text-white' : 'bg-white border'}`}
+            >
+              <FiImage size={16} />
+              <span className="text-xs">Image</span>
+            </button>
+            <button
+              onClick={() => { setTool('shape'); setShapeSettings({ ...shapeSettings, type: 'rectangle' }); }}
+              className={`flex-shrink-0 p-2 rounded flex items-center space-x-1 ${tool === 'shape' && shapeSettings.type === 'rectangle' ? 'bg-blue-600 text-white' : 'bg-white border'}`}
+            >
+              <FiSquare size={16} />
+              <span className="text-xs">Rect</span>
+            </button>
+            <button
+              onClick={() => { setTool('shape'); setShapeSettings({ ...shapeSettings, type: 'circle' }); }}
+              className={`flex-shrink-0 p-2 rounded flex items-center space-x-1 ${tool === 'shape' && shapeSettings.type === 'circle' ? 'bg-blue-600 text-white' : 'bg-white border'}`}
+            >
+              <FiCircle size={16} />
+              <span className="text-xs">Circle</span>
+            </button>
+            <button
+              onClick={() => { setTool('shape'); setShapeSettings({ ...shapeSettings, type: 'line' }); }}
+              className={`flex-shrink-0 p-2 rounded flex items-center space-x-1 ${tool === 'shape' && shapeSettings.type === 'line' ? 'bg-blue-600 text-white' : 'bg-white border'}`}
+            >
+              <FiMinus size={16} />
+              <span className="text-xs">Line</span>
+            </button>
+            <button
+              onClick={addWatermark}
+              className="flex-shrink-0 p-2 rounded bg-white border flex items-center space-x-1"
+            >
+              <FiDroplet size={16} />
+              <span className="text-xs">Watermark</span>
+            </button>
+          </div>
+
+          {/* Left Toolbar (Desktop Only) */}
+          <div className="hidden md:flex w-20 border-r bg-gray-50 flex-col items-center py-4 space-y-2">
             <button
               onClick={() => setTool('select')}
               className={`p-3 rounded ${tool === 'select' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-100'}`}
@@ -358,8 +436,20 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
           </div>
 
           {/* Properties Panel */}
-          <div className="w-72 border-r p-4 overflow-y-auto bg-gray-50">
-            <h4 className="font-semibold mb-4 text-gray-900">Properties</h4>
+          <div className={`
+            ${showProperties ? 'flex' : 'hidden md:flex'} 
+            fixed md:relative inset-0 md:inset-auto z-40 md:z-0
+            w-full md:w-72 border-r p-4 overflow-y-auto bg-gray-50 flex-col
+          `}>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-gray-900">Properties</h4>
+              <button
+                onClick={() => setShowProperties(false)}
+                className="md:hidden p-2 text-gray-500 hover:text-gray-700"
+              >
+                Close
+              </button>
+            </div>
 
             {/* Text Tool Settings */}
             {tool === 'text' && (
@@ -595,8 +685,16 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
           </div>
 
           {/* PDF Canvas */}
-          <div className="flex-1 overflow-auto p-4 bg-gray-100">
+          <div className="flex-1 overflow-auto p-2 sm:p-4 bg-gray-100" ref={containerRef}>
             <div className="flex flex-col items-center">
+              {/* Properties Toggle for Mobile */}
+              <button
+                onClick={() => setShowProperties(true)}
+                className="md:hidden mb-4 px-4 py-2 bg-white border rounded-full shadow-sm text-sm font-medium flex items-center space-x-2"
+              >
+                <FiEdit2 size={14} />
+                <span>Adjust Settings</span>
+              </button>
               <div
                 className="relative bg-white shadow-lg"
                 onClick={handleCanvasClick}
@@ -739,22 +837,22 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
               </div>
 
               {/* Page Navigation & Zoom */}
-              <div className="flex items-center justify-between w-full max-w-2xl mt-4 bg-white rounded-lg shadow p-3">
+              <div className="flex flex-col sm:flex-row items-center justify-between w-full max-w-2xl mt-4 bg-white rounded-lg shadow p-3 gap-3">
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage <= 1}
-                    className="px-3 py-1 bg-blue-600 text-white rounded disabled:bg-gray-300"
+                    className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded disabled:bg-gray-300 text-sm sm:text-base"
                   >
-                    Previous
+                    Prev
                   </button>
-                  <span className="text-sm font-medium">
+                  <span className="text-xs sm:text-sm font-medium whitespace-nowrap">
                     Page {currentPage} of {numPages}
                   </span>
                   <button
                     onClick={() => setCurrentPage(p => Math.min(numPages, p + 1))}
                     disabled={currentPage >= numPages}
-                    className="px-3 py-1 bg-blue-600 text-white rounded disabled:bg-gray-300"
+                    className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded disabled:bg-gray-300 text-sm sm:text-base"
                   >
                     Next
                   </button>
@@ -762,17 +860,17 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
 
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
-                    className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                    onClick={() => setScale(s => Math.max(0.3, s - 0.1))}
+                    className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 font-bold"
                   >
                     -
                   </button>
-                  <span className="text-sm font-medium min-w-[60px] text-center">
+                  <span className="text-xs sm:text-sm font-medium min-w-[50px] text-center">
                     {Math.round(scale * 100)}%
                   </span>
                   <button
-                    onClick={() => setScale(s => Math.min(2.0, s + 0.1))}
-                    className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                    onClick={() => setScale(s => Math.min(3.0, s + 0.1))}
+                    className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 font-bold"
                   >
                     +
                   </button>

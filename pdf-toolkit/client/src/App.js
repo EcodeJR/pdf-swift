@@ -4,6 +4,9 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { initGA, logPageView } from './services/analytics';
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 
 // Components
 import Navbar from './components/Navbar';
@@ -48,10 +51,23 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import CookiePolicy from './pages/CookiePolicy';
 
+const AnalyticsTracker = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    logPageView(location.pathname + location.search);
+  }, [location]);
+
+  return null;
+};
+
 function App() {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
+    // Initialize GA4
+    initGA();
+
     // Show loading page for 2.3 seconds (1.5s display + 0.8s exit animation)
     const timer = setTimeout(() => {
       setLoading(false);
@@ -64,6 +80,7 @@ function App() {
       <AuthProvider>
         <ThemeProvider>
           <Router>
+            <AnalyticsTracker />
             {loading && <LoadingPage />}
             <ScrollToTop />
             <div className="flex flex-col min-h-screen">

@@ -124,23 +124,6 @@ app.use(express.urlencoded({ extended: true }));
 const uploadsDir = path.join(__dirname, 'uploads');
 fs.mkdir(uploadsDir, { recursive: true }).catch(console.error);
 
-// Test route
-app.get('/', (req, res) => {
-  res.json({
-    message: 'PDF Toolkit API is running',
-    version: '2.0.0',
-    features: ['Job Queue', 'OCR', 'Enhanced Rate Limiting'],
-    endpoints: {
-      auth: '/api/auth',
-      convert: '/api/convert',
-      payment: '/api/payment',
-      user: '/api/user',
-      jobs: '/api/jobs',
-      ocr: '/api/ocr',
-      contact: '/api/contact'
-    }
-  });
-});
 
 // API Routes
 app.use('/api/auth', authRoutes);

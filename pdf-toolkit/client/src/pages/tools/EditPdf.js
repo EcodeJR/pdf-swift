@@ -6,6 +6,7 @@ import PdfEditorAdvanced from '../../components/PdfEditorAdvanced';
 import VideoAdModal from '../../components/VideoAdModal';
 import AdBanner from '../../components/AdBanner';
 import api from '../../services/api';
+import { logEvent } from '../../services/analytics';
 import { FiUpload, FiEdit3, FiCheckCircle } from 'react-icons/fi';
 
 const EditPdf = () => {
@@ -75,6 +76,9 @@ const EditPdf = () => {
       } else {
         toast.success('PDF edited successfully!');
       }
+
+      // Track successful edit event
+      logEvent('Tool Usage', 'Edit PDF Success', selectedFile.name);
     } catch (error) {
       console.error('Edit error:', error);
       toast.error(error.response?.data?.message || 'Failed to edit PDF');
@@ -121,10 +125,10 @@ const EditPdf = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
       {/* Header Ad Banner */}
       {(!user || !user.isPremium) && (
-        <div className="bg-gray-100 py-2">
+        <div className="bg-gray-100 py-2 mb-4 sm:mb-8">
           <div className="max-w-4xl mx-auto px-4">
             <AdBanner />
           </div>
@@ -133,30 +137,30 @@ const EditPdf = () => {
 
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <div className="flex items-center justify-center mb-4">
-            <FiEdit3 className="text-5xl text-blue-600" />
+            <FiEdit3 className="text-4xl sm:text-5xl text-blue-600" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Edit PDF</h1>
-          <p className="text-lg text-gray-600">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Edit PDF</h1>
+          <p className="text-base sm:text-lg text-gray-600">
             Add text, highlights, watermarks, and annotations to your PDF
           </p>
         </div>
 
         {/* Main Content */}
-        <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-8">
           {!result ? (
             <>
               {/* File Upload */}
               <div
                 {...getRootProps()}
-                className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${isDragActive
+                className={`border-2 border-dashed rounded-lg p-6 sm:p-12 text-center cursor-pointer transition-colors ${isDragActive
                   ? 'border-blue-500 bg-blue-50'
                   : 'border-gray-300 hover:border-blue-400'
                   }`}
               >
                 <input {...getInputProps()} />
-                <FiUpload className="mx-auto text-5xl text-gray-400 mb-4" />
+                <FiUpload className="mx-auto text-4xl sm:text-5xl text-gray-400 mb-4" />
                 {isDragActive ? (
                   <p className="text-lg text-blue-600">Drop your PDF here...</p>
                 ) : (
