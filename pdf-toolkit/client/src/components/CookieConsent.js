@@ -17,14 +17,41 @@ const CookieConsent = () => {
     const handleAccept = () => {
         localStorage.setItem('cookieConsent', 'accepted');
         localStorage.setItem('cookieConsentDate', new Date().toISOString());
+
+        // Signal consent to Google AdSense
+        window.adConsentGranted = true;
+
+        // Enable personalized ads
+        if (window.gtag) {
+            window.gtag('consent', 'update', {
+                'ad_storage': 'granted',
+                'ad_user_data': 'granted',
+                'ad_personalization': 'granted',
+                'analytics_storage': 'granted'
+            });
+        }
+
         setShowBanner(false);
     };
 
     const handleDecline = () => {
         localStorage.setItem('cookieConsent', 'declined');
         localStorage.setItem('cookieConsentDate', new Date().toISOString());
+
+        // Signal denial to Google AdSense
+        window.adConsentGranted = false;
+
+        // Disable personalized ads (still allows non-personalized ads)
+        if (window.gtag) {
+            window.gtag('consent', 'update', {
+                'ad_storage': 'denied',
+                'ad_user_data': 'denied',
+                'ad_personalization': 'denied',
+                'analytics_storage': 'denied'
+            });
+        }
+
         setShowBanner(false);
-        // Optionally clear any non-essential cookies here
     };
 
     if (!showBanner) return null;
@@ -77,7 +104,7 @@ const CookieConsent = () => {
                                         🍪 We Value Your Privacy
                                     </h3>
                                     <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                                        We use cookies to enhance your experience, keep you logged in, and analyze site performance.
+                                        We use cookies to enhance your experience, show personalized ads, and analyze site performance.
                                         Your uploaded files are <strong>automatically deleted after 1 hour</strong> and we never access or share them.
                                     </p>
                                     <Link
