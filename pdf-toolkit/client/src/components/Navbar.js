@@ -54,7 +54,7 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center" onClick={() => setIsMenuOpen(false)}>
-            <span className="text-2xl font-bold text-primary-600">PDF Toolkit</span>
+            <span className="text-2xl font-bold text-primary-600">PDF swift</span>
           </Link>
 
           {/* Desktop Navigation */}

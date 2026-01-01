@@ -17,7 +17,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Column 1: About */}
           <div>
-            <h3 className="text-xl font-bold mb-4">PDF Toolkit</h3>
+            <h3 className="text-xl font-bold mb-4">PDF swift</h3>
             <p className="text-gray-400 text-sm">
               Free online PDF converter and editor. Fast, secure, and easy to use.
             </p>
