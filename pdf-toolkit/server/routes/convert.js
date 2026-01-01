@@ -25,8 +25,13 @@ const {
 // Apply optional auth to all conversion routes
 router.use(optionalAuth);
 
+// Download routes - NO RATE LIMITING (downloads should always work after successful conversion)
+router.get('/download/:filename', downloadFile);
+router.get('/download/cloud/:fileId', downloadCloudFile);
+
 // Smart rate limiter: Use Redis if available, fallback to database
-router.use((req, res, next) => {
+// Only applies to POST (conversion) routes below this middleware
+const conversionRateLimiter = (req, res, next) => {
   // Check Redis connection status on EVERY request (not just at startup)
   const isRedisReady = redisClient.status === 'ready' && redisClient.isConnected && redisClient.isConnected();
 
@@ -39,29 +44,24 @@ router.use((req, res, next) => {
     console.log('📊 Using database for rate limiting (Redis status:', redisClient.status, ')');
     checkUserConversionLimit(req, res, next);
   }
-});
+};
 
-
-// Conversion routes
-router.post('/pdf-to-word', localUpload.single('file'), pdfToWord);
-router.post('/pdf-to-excel', localUpload.single('file'), pdfToExcel);
-router.post('/pdf-to-jpg', localUpload.single('file'), pdfToJpg);
-router.post('/word-to-pdf', localUpload.single('file'), wordToPdf);
-router.post('/excel-to-pdf', localUpload.single('file'), excelToPdf);
-router.post('/jpg-to-pdf', localUpload.array('files', 10), jpgToPdf);
-router.post('/compress-pdf', localUpload.single('file'), compressPdf);
-router.post('/merge-pdf', localUpload.array('files', 10), mergePdf);
-router.post('/split-pdf', localUpload.single('file'), splitPdf);
-router.post('/edit-pdf', localUpload.single('file'), editPdf);
-router.post('/protect-pdf', localUpload.single('file'), protectPdf);
-router.post('/watermark-pdf', localUpload.fields([
+// Conversion routes (rate-limited)
+router.post('/pdf-to-word', conversionRateLimiter, localUpload.single('file'), pdfToWord);
+router.post('/pdf-to-excel', conversionRateLimiter, localUpload.single('file'), pdfToExcel);
+router.post('/pdf-to-jpg', conversionRateLimiter, localUpload.single('file'), pdfToJpg);
+router.post('/word-to-pdf', conversionRateLimiter, localUpload.single('file'), wordToPdf);
+router.post('/excel-to-pdf', conversionRateLimiter, localUpload.single('file'), excelToPdf);
+router.post('/jpg-to-pdf', conversionRateLimiter, localUpload.array('files', 10), jpgToPdf);
+router.post('/compress-pdf', conversionRateLimiter, localUpload.single('file'), compressPdf);
+router.post('/merge-pdf', conversionRateLimiter, localUpload.array('files', 10), mergePdf);
+router.post('/split-pdf', conversionRateLimiter, localUpload.single('file'), splitPdf);
+router.post('/edit-pdf', conversionRateLimiter, localUpload.single('file'), editPdf);
+router.post('/protect-pdf', conversionRateLimiter, localUpload.single('file'), protectPdf);
+router.post('/watermark-pdf', conversionRateLimiter, localUpload.fields([
   { name: 'file', maxCount: 1 },
   { name: 'watermarkImage', maxCount: 1 }
 ]), watermarkPdf);
-router.post('/unlock-pdf', localUpload.single('file'), unlockPdf);
-
-// Download routes
-router.get('/download/:filename', downloadFile);
-router.get('/download/cloud/:fileId', downloadCloudFile);
+router.post('/unlock-pdf', conversionRateLimiter, localUpload.single('file'), unlockPdf);
 
 module.exports = router;

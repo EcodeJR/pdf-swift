@@ -243,32 +243,30 @@ exports.compressPdf = async (req, res) => {
     let originalSize;
 
     if (compressionLevel === 'strong') {
-      // STRONG COMPRESSION (Rasterization)
+      // STRONG COMPRESSION (Rasterization using pdftoppm)
       const inputPath = req.file.path;
       const outputDir = path.join(__dirname, '../uploads', `temp_${Date.now()}`);
 
       try {
         await fs.mkdir(outputDir);
 
-        // 1. Convert to Images
-        const opts = {
-          format: 'jpeg',
-          out_dir: outputDir,
-          out_prefix: 'page',
-          page: null
-        };
+        // 1. Convert PDF to Images using pdftoppm (Linux native & Windows compatible)
+        const pdftoppmExec = process.platform === 'win32' && process.env.POPPLER_PATH
+          ? `"${path.join(process.env.POPPLER_PATH, 'pdftoppm.exe')}"`
+          : POPPLER_BIN_PATH;
 
-        await convert(inputPath, opts);
+        const command = `${pdftoppmExec} -jpeg -r 150 "${inputPath}" "${path.join(outputDir, 'page')}"`;
+        await execAsync(command);
 
         // 2. Compress Images & Build PDF
         const pdfDoc = await PDFDocument.create();
         const files = await fs.readdir(outputDir);
         const imageFiles = files.filter(f => f.startsWith('page') && f.endsWith('.jpg'));
 
-        // Sort by page number
+        // Sort by page number (pdftoppm outputs page-1.jpg, page-2.jpg, etc.)
         imageFiles.sort((a, b) => {
-          const numA = parseInt(a.match(/page-(\d+)/)[1]);
-          const numB = parseInt(b.match(/page-(\d+)/)[1]);
+          const numA = parseInt(a.match(/page-(\d+)/)?.[1] || '0');
+          const numB = parseInt(b.match(/page-(\d+)/)?.[1] || '0');
           return numA - numB;
         });
 
@@ -380,15 +378,35 @@ exports.mergePdf = async (req, res) => {
     // Create merged PDF
     const mergedPdf = await PDFDocument.create();
 
-    // Load and merge each PDF
+    // Load and merge each PDF with validation
+    const failedFiles = [];
     for (const file of req.files) {
       const pdfBuffer = await fs.readFile(file.path);
-      const pdf = await PDFDocument.load(pdfBuffer);
-      const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-      copiedPages.forEach(page => mergedPdf.addPage(page));
+
+      try {
+        const pdf = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
+        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+        copiedPages.forEach(page => mergedPdf.addPage(page));
+      } catch (loadError) {
+        console.error(`Failed to load PDF: ${file.originalname}`, loadError.message);
+        failedFiles.push(file.originalname);
+      }
 
       // Clean up individual file
       await fs.unlink(file.path);
+    }
+
+    // If all files failed, return error
+    if (failedFiles.length === req.files.length) {
+      return res.status(400).json({
+        message: 'All uploaded files are invalid or corrupted PDFs.',
+        failedFiles
+      });
+    }
+
+    // If some files failed, warn but continue
+    if (failedFiles.length > 0) {
+      console.warn(`Some files could not be merged: ${failedFiles.join(', ')}`);
     }
 
     const mergedBytes = await mergedPdf.save();

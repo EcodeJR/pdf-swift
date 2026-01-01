@@ -6,11 +6,13 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
   const [countdown, setCountdown] = useState(adDuration); // Use custom duration
   const [adError, setAdError] = useState(false);
   const adCompleteCalled = React.useRef(false);
+  const downloadStarted = React.useRef(false);
 
-  // Reset ref when modal opens/closes
+  // Reset refs when modal opens/closes
   useEffect(() => {
     if (!isOpen) {
       adCompleteCalled.current = false;
+      downloadStarted.current = false;
       setAdCompleted(false);
       setCountdown(adDuration); // Reset to custom duration
     }
@@ -29,9 +31,11 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
               setTimeout(() => {
                 setAdCompleted(true);
                 onAdComplete();
-                // Auto-download after ad completes
+                // Auto-download after ad completes (only if not already started)
                 setTimeout(() => {
-                  handleDownload();
+                  if (!downloadStarted.current) {
+                    handleDownload();
+                  }
                 }, 500);
               }, 0);
             }
@@ -49,7 +53,14 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
   }, [isOpen, adCompleted, onAdComplete]);
 
   const handleDownload = async () => {
+    // Prevent multiple simultaneous downloads
+    if (downloadStarted.current) {
+      console.log('Download already in progress, skipping...');
+      return;
+    }
+
     if (downloadUrl) {
+      downloadStarted.current = true;
       try {
         // The downloadUrl from conversionAPI.downloadFile is already a complete URL
         // e.g., "http://localhost:5000/api/convert/download/file.pdf"
@@ -74,6 +85,7 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
         setTimeout(() => onClose(), 1000);
       } catch (error) {
         console.error('Download error:', error);
+        downloadStarted.current = false; // Reset on error so user can retry
         // Fallback to direct window open if fetch fails
         window.open(downloadUrl, '_blank');
         setTimeout(() => onClose(), 1000);
