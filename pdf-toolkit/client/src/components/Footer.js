@@ -17,7 +17,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Column 1: About */}
           <div>
-            <h3 className="text-xl font-bold mb-4">PDF swift</h3>
+            <h3 className="text-xl font-bold mb-4">PDF SWIFT</h3>
             <p className="text-gray-400 text-sm">
               Free online PDF converter and editor. Fast, secure, and easy to use.
             </p>
@@ -117,7 +117,7 @@ const Footer = () => {
 
         <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-400 text-sm">
-            © {currentYear} PDF Toolkit. All rights reserved.
+            © {currentYear} PDF SWIFT. All rights reserved.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <a href="#" className="text-gray-400 hover:text-white">
