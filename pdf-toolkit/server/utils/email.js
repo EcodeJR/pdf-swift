@@ -69,11 +69,11 @@ const sendWelcomeEmail = async (email, name) => {
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h1 style="color: #3b82f6;">Welcome to PDF Toolkit!</h1>
       <p>Hi there,</p>
-      <p>Thank you for creating an account with PDF Toolkit. You now have access to:</p>
+      <p>Thank you for creating an account with PDF SWIFT. You now have access to:</p>
       <ul>
-        <li>All 10 PDF conversion tools</li>
+        <li>All 13 PDF conversion tools</li>
         <li>Cloud storage for your converted files (30 days)</li>
-        <li>3 free conversions per hour</li>
+        <li>5 free conversions per hour</li>
       </ul>
       <p>Want unlimited conversions and no ads? <a href="${process.env.CLIENT_URL}/pricing" style="color: #3b82f6;">Upgrade to Premium</a> for just $5/month!</p>
       <p>Happy converting!<br>The PDF Toolkit Team</p>
