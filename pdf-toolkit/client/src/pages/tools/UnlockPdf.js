@@ -3,7 +3,6 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
-import AdBanner from '../../components/AdBanner';
 import { conversionAPI } from '../../services/api';
 import { FiDownload, FiLoader, FiUnlock } from 'react-icons/fi';
 
@@ -50,15 +49,6 @@ const UnlockPdf = () => {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Header Ad Banner */}
-            {(!user || !user.isPremium) && (
-                <div className="bg-gray-100 py-2">
-                    <div className="max-w-4xl mx-auto px-4">
-                        <AdBanner />
-                    </div>
-                </div>
-            )}
-
             <div className="max-w-4xl mx-auto px-4 py-12">
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold text-gray-900 mb-4">Unlock PDF</h1>
@@ -138,15 +128,6 @@ const UnlockPdf = () => {
                     downloadUrl={conversionAPI.downloadFile(convertedFile.fileName)}
                     fileName={convertedFile.fileName}
                 />
-            )}
-
-            {/* Bottom Ad Banner */}
-            {(!user || !user.isPremium) && (
-                <div className="bg-gray-100 py-4">
-                    <div className="max-w-4xl mx-auto px-4">
-                        <AdBanner />
-                    </div>
-                </div>
             )}
         </div>
     );
