@@ -97,6 +97,9 @@ initCloudUpload();
 // Security middleware
 app.use(helmet());
 
+// Enable trust proxy for correct IP detection behind load balancers (e.g. Render, Heroku)
+app.set('trust proxy', 1);
+
 // CORS configuration
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
