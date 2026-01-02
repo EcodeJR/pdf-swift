@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
-import { FiUser, FiMail, FiLock, FiArrowRight, FiCheck } from 'react-icons/fi';
+import { FiUser, FiMail, FiLock, FiArrowRight, FiCheck, FiEye, FiEyeOff } from 'react-icons/fi';
 import { GridPattern } from '../components/GridPattern';
 
 const Register = () => {
@@ -10,6 +10,8 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
@@ -145,14 +147,21 @@ const Register = () => {
                     <input
                       id="password"
                       name="password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       autoComplete="new-password"
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="input-field pl-11"
+                      className="input-field pl-11 pr-11"
                       placeholder="At least 8 characters"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      {showPassword ? <FiEyeOff className="h-5 w-5" /> : <FiEye className="h-5 w-5" />}
+                    </button>
                   </div>
                 </div>
 
@@ -168,20 +177,27 @@ const Register = () => {
                     <input
                       id="confirmPassword"
                       name="confirmPassword"
-                      type="password"
+                      type={showConfirmPassword ? "text" : "password"}
                       autoComplete="new-password"
                       required
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="input-field pl-11"
+                      className="input-field pl-11 pr-11"
                       placeholder="Confirm your password"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      {showConfirmPassword ? <FiEyeOff className="h-5 w-5" /> : <FiEye className="h-5 w-5" />}
+                    </button>
                   </div>
                 </div>
               </div>
 
               {/* Terms Checkbox */}
-              <div className="flex items-start space-x-3 bg-primary/5 p-4 rounded-lg">
+              <div className="flex items-center space-x-3 bg-primary/5 p-4 rounded-lg">
                 <div className="flex items-center h-5 pt-0.5">
                   <input
                     id="terms"
@@ -192,15 +208,15 @@ const Register = () => {
                     className="focus:ring-primary-500 h-4 w-4 text-primary-600 border-gray-300 rounded"
                   />
                 </div>
-                <label htmlFor="terms" className="text-sm text-gray-700">
+                <label htmlFor="terms" className="text-xs md:text-sm text-gray-700">
                   I agree to the{' '}
-                  <a href="#" className="font-semibold text-primary-600 hover:text-primary-500">
+                  <Link to="/terms-of-service" className="font-semibold text-primary-600 hover:text-primary-500">
                     Terms of Service
-                  </a>{' '}
+                  </Link>{' '}
                   and{' '}
-                  <a href="#" className="font-semibold text-primary-600 hover:text-primary-500">
+                  <Link to="/privacy-policy" className="font-semibold text-primary-600 hover:text-primary-500">
                     Privacy Policy
-                  </a>
+                  </Link>
                 </label>
               </div>
 
