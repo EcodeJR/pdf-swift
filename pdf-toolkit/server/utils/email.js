@@ -51,21 +51,8 @@ if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
 // Helper function to send email using either Gmail or SendGrid
 const sendEmail = async (to, subject, html) => {
   try {
-    // Prefer Gmail if configured
-    if (gmailTransporter) {
-      const mailOptions = {
-        from: `"PDF SWIFT" <${process.env.EMAIL_USER}>`,
-        to,
-        subject,
-        html
-      };
-
-      await gmailTransporter.sendMail(mailOptions);
-      console.log(`Email sent via Gmail to: ${to}`);
-      return true;
-    }
-    // Fallback to SendGrid
-    else if (process.env.SENDGRID_API_KEY) {
+    // Check for SendGrid FIRST (More reliable for production)
+    if (process.env.SENDGRID_API_KEY) {
       const msg = {
         to,
         from: process.env.SENDGRID_FROM_EMAIL,
@@ -75,6 +62,19 @@ const sendEmail = async (to, subject, html) => {
 
       await sgMail.send(msg);
       console.log(`Email sent via SendGrid to: ${to}`);
+      return true;
+    }
+    // Fallback to Gmail/SMTP if configured
+    else if (gmailTransporter) {
+      const mailOptions = {
+        from: `"PDF SWIFT" <${process.env.EMAIL_USER}>`,
+        to,
+        subject,
+        html
+      };
+
+      await gmailTransporter.sendMail(mailOptions);
+      console.log(`Email sent via Gmail to: ${to}`);
       return true;
     }
     // No email service configured

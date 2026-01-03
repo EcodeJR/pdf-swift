@@ -40,6 +40,32 @@ const createTransporter = () => {
 // Send email notification when contact form is submitted
 exports.sendContactNotification = async (contactData) => {
     try {
+        // PRIORITIZE SENDGRID
+        if (process.env.SENDGRID_API_KEY) {
+            const sgMail = require('@sendgrid/mail');
+            sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+            const msg = {
+                to: process.env.SENDGRID_FROM_EMAIL, // Send to admin
+                from: process.env.SENDGRID_FROM_EMAIL,
+                subject: `New Contact Form Submission: ${contactData.subject}`,
+                html: `
+            <h2>New Contact Form Submission</h2>
+            <p><strong>From:</strong> ${contactData.name}</p>
+            <p><strong>Email:</strong> ${contactData.email}</p>
+            <p><strong>Subject:</strong> ${contactData.subject}</p>
+            <p><strong>Message:</strong></p>
+            <p>${contactData.message.replace(/\n/g, '<br>')}</p>
+            <hr>
+            <p><small>Submitted at: ${new Date().toLocaleString()}</small></p>
+          `
+            };
+            await sgMail.send(msg);
+            console.log('Contact notification email sent via SendGrid');
+            return;
+        }
+
+        // Fallback to SMTP
         const transporter = createTransporter();
 
         const mailOptions = {
@@ -70,6 +96,33 @@ exports.sendContactNotification = async (contactData) => {
 // Send auto-reply to user
 exports.sendAutoReply = async (contactData) => {
     try {
+        // PRIORITIZE SENDGRID
+        if (process.env.SENDGRID_API_KEY) {
+            const sgMail = require('@sendgrid/mail');
+            sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+            const msg = {
+                to: contactData.email,
+                from: process.env.SENDGRID_FROM_EMAIL,
+                subject: 'Thank you for contacting PDF Swift',
+                html: `
+            <h2>Thank you for reaching out!</h2>
+            <p>Dear ${contactData.name},</p>
+            <p>We have received your message and will get back to you as soon as possible.</p>
+            <p><strong>Your message:</strong></p>
+            <p style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
+              ${contactData.message.replace(/\n/g, '<br>')}
+            </p>
+            <p>Best regards,<br>The PDF Swift Team</p>
+            <hr>
+            <p><small>This is an automated response. Please do not reply to this email.</small></p>
+          `
+            };
+            await sgMail.send(msg);
+            console.log('Auto-reply email sent via SendGrid');
+            return;
+        }
+
         const transporter = createTransporter();
 
         const mailOptions = {
