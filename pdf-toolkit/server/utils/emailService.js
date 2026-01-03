@@ -15,6 +15,8 @@ const createTransporter = () => {
         connectionTimeout: 10000,
         greetingTimeout: 10000,
         socketTimeout: 10000,
+        // Force IPv4 (fixes timeouts on some docker/cloud networks)
+        family: 4,
         // Debugging options
         debug: false,
         logger: true,
