@@ -811,7 +811,7 @@ exports.wordToPdf = async (req, res) => {
     await trackConversion(
       req.user ? req.user._id : null,
       ip,
-      'word-to-word', // Should be 'word-to-pdf' but keeping consistent with previous code if any
+      'word-to-pdf',
       req.file.originalname,
       outputFileName,
       pdfStats.size,
