@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     fonts-opensymbol \
     libfontconfig1 \
     python3 \
+    python3-pip \
     make \
     g++ \
     build-essential \
@@ -26,6 +27,10 @@ COPY package*.json ./
 
 # Install app dependencies
 RUN npm install --omit=dev --legacy-peer-deps
+
+# Install Python dependencies for PDF conversion
+# --break-system-packages is required for newer Debian/Ubuntu in Docker without venv
+RUN pip3 install pdf2docx --break-system-packages
 
 # Copy app source
 COPY . .

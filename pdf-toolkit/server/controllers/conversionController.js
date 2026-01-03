@@ -116,15 +116,17 @@ exports.pdfToWord = async (req, res) => {
     // Check local file existence before convert
     await fs.access(req.file.path);
 
-    // Convert using LibreOffice
-    // --infilter="writer_pdf_import" forces PDF import
-    // --convert-to docx converts to Microsoft Word 2007 XML
+    // Convert using Python pdf2docx
     try {
-      const command = `"${LIBREOFFICE_PATH}" --headless --infilter="writer_pdf_import" --convert-to docx:"MS Word 2007 XML" --outdir "${outputDir}" "${req.file.path}"`;
+      const pythonScript = path.join(__dirname, '../utils/pdfToWord.py');
+      // Use python3 explicitly as installed in Docker
+      const command = `python3 "${pythonScript}" "${req.file.path}" "${outputPath}"`;
       await execAsync(command);
     } catch (error) {
-      console.error('LibreOffice PDF to Word conversion error:', error.message);
-      throw new Error('Conversion failed. Please ensure the file is a valid PDF.');
+      console.error('Python PDF to Word conversion error:', error.message);
+      // Log stderr if available for debugging
+      if (error.stderr) console.error('Python stderr:', error.stderr);
+      throw new Error('Conversion failed. Please allow some time or try a simpler PDF.');
     }
 
     // Check if output exists
@@ -155,7 +157,7 @@ exports.pdfToWord = async (req, res) => {
     const conversionTime = Date.now() - startTime;
 
     res.json({
-      message: 'PDF converted to Word successfully (Enhanced Layout)',
+      message: 'PDF converted to Word successfully (High Quality)',
       downloadUrl: `/api/convert/download/${outputFileName}`,
       fileName: outputFileName,
       fileSize: stats.size,
