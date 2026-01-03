@@ -4,10 +4,23 @@ const nodemailer = require('nodemailer');
 // Create transporter using Gmail
 const createTransporter = () => {
     return nodemailer.createTransport({
-        service: 'gmail',
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT || '465'),
+        secure: process.env.SMTP_SECURE === 'true' || true, // true for 465, false for other ports
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
+        },
+        // Timings to avoid indefinite hangs
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
+        // Debugging options
+        debug: false,
+        logger: true,
+        tls: {
+            // Helpful if running from a local machine with strict antivirus or proxy
+            rejectUnauthorized: false
         }
     });
 };
