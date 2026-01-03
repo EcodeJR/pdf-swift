@@ -3,14 +3,24 @@ const nodemailer = require('nodemailer');
 
 // Create transporter using Gmail
 const createTransporter = () => {
-    return nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    const smtpConfig = process.env.SMTP_HOST ? {
+        host: process.env.SMTP_HOST,
         port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true' || false, // false for 587, true for 465
+        secure: process.env.SMTP_SECURE === 'true',
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
-        },
+        }
+    } : {
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+        }
+    };
+
+    return nodemailer.createTransport({
+        ...smtpConfig,
         // Timings to avoid indefinite hangs
         connectionTimeout: 10000,
         greetingTimeout: 10000,
