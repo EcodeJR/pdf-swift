@@ -109,34 +109,33 @@ exports.pdfToWord = async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const pdfBuffer = await fs.readFile(req.file.path);
-    const pdfData = await pdfParse(pdfBuffer);
-
-    // Extract text and create paragraphs
-    const textLines = pdfData.text.split('\n').filter(line => line.trim());
-    const paragraphs = textLines.map(line =>
-      new Paragraph({
-        children: [new TextRun(line)]
-      })
-    );
-
-    // Create Word document
-    const doc = new Document({
-      sections: [{
-        properties: {},
-        children: paragraphs.length > 0 ? paragraphs : [
-          new Paragraph({
-            children: [new TextRun('No text content found in PDF')]
-          })
-        ]
-      }]
-    });
-
-    const buffer = await Packer.toBuffer(doc);
+    const outputDir = path.join(__dirname, '../uploads');
     const outputFileName = req.file.filename.replace(path.extname(req.file.filename), "") + ".docx";
-    const outputPath = path.join(__dirname, '../uploads', outputFileName);
+    const outputPath = path.join(outputDir, outputFileName);
 
-    await fs.writeFile(outputPath, buffer);
+    // Check local file existence before convert
+    await fs.access(req.file.path);
+
+    // Convert using LibreOffice
+    // --infilter="writer_pdf_import" forces PDF import
+    // --convert-to docx converts to Microsoft Word 2007 XML
+    try {
+      const command = `"${LIBREOFFICE_PATH}" --headless --infilter="writer_pdf_import" --convert-to docx:"MS Word 2007 XML" --outdir "${outputDir}" "${req.file.path}"`;
+      await execAsync(command);
+    } catch (error) {
+      console.error('LibreOffice PDF to Word conversion error:', error.message);
+      throw new Error('Conversion failed. Please ensure the file is a valid PDF.');
+    }
+
+    // Check if output exists
+    try {
+      await fs.access(outputPath);
+    } catch (e) {
+      throw new Error('Output file was not generated.');
+    }
+
+    // Get file stats
+    const stats = await fs.stat(outputPath);
 
     // Track conversion
     const ip = req.ip || req.connection.remoteAddress;
@@ -146,7 +145,7 @@ exports.pdfToWord = async (req, res) => {
       'pdf-to-word',
       req.file.originalname,
       outputFileName,
-      buffer.length,
+      stats.size,
       req.body.storageType || 'temporary'
     );
 
@@ -156,14 +155,16 @@ exports.pdfToWord = async (req, res) => {
     const conversionTime = Date.now() - startTime;
 
     res.json({
-      message: 'PDF converted to Word successfully',
+      message: 'PDF converted to Word successfully (Enhanced Layout)',
       downloadUrl: `/api/convert/download/${outputFileName}`,
       fileName: outputFileName,
-      fileSize: buffer.length,
+      fileSize: stats.size,
       conversionTime
     });
   } catch (error) {
     console.error('PDF to Word error:', error);
+    // Cleanup on error
+    try { if (req.file) await fs.unlink(req.file.path); } catch (e) { }
     res.status(500).json({ message: 'Error converting PDF to Word', error: error.message });
   }
 };
@@ -177,22 +178,26 @@ exports.pdfToExcel = async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const pdfBuffer = await fs.readFile(req.file.path);
-    const pdfData = await pdfParse(pdfBuffer);
-
-    // Extract text and attempt to parse into rows
-    const textLines = pdfData.text.split('\n').filter(line => line.trim());
-    const data = textLines.map(line => [line]);
-
-    // Create Excel workbook
-    const wb = xlsx.utils.book_new();
-    const ws = xlsx.utils.aoa_to_sheet(data);
-    xlsx.utils.book_append_sheet(wb, ws, 'Sheet1');
-
+    const outputDir = path.join(__dirname, '../uploads');
     const outputFileName = req.file.filename.replace(path.extname(req.file.filename), "") + ".xlsx";
-    const outputPath = path.join(__dirname, '../uploads', outputFileName);
+    const outputPath = path.join(outputDir, outputFileName);
 
-    xlsx.writeFile(wb, outputPath);
+    // Convert using LibreOffice
+    // --infilter="calc_pdf_import" forces PDF import into Calc
+    try {
+      const command = `"${LIBREOFFICE_PATH}" --headless --infilter="calc_pdf_import" --convert-to xlsx --outdir "${outputDir}" "${req.file.path}"`;
+      await execAsync(command);
+    } catch (error) {
+      console.error('LibreOffice PDF to Excel conversion error:', error.message);
+      throw new Error('Conversion failed. Please ensure the file is a valid PDF.');
+    }
+
+    // Check if output exists
+    try {
+      await fs.access(outputPath);
+    } catch (e) {
+      throw new Error('Output file was not generated.');
+    }
 
     // Get file size
     const stats = await fs.stat(outputPath);
@@ -215,7 +220,7 @@ exports.pdfToExcel = async (req, res) => {
     const conversionTime = Date.now() - startTime;
 
     res.json({
-      message: 'PDF converted to Excel successfully',
+      message: 'PDF converted to Excel successfully (Enhanced Tables)',
       downloadUrl: `/api/convert/download/${outputFileName}`,
       fileName: outputFileName,
       fileSize: stats.size,
@@ -223,6 +228,8 @@ exports.pdfToExcel = async (req, res) => {
     });
   } catch (error) {
     console.error('PDF to Excel error:', error);
+    // Cleanup
+    try { if (req.file) await fs.unlink(req.file.path); } catch (e) { }
     res.status(500).json({ message: 'Error converting PDF to Excel', error: error.message });
   }
 };

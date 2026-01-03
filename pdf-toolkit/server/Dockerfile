@@ -7,11 +7,14 @@ RUN apt-get update && apt-get install -y \
     poppler-utils \
     ghostscript \
     fonts-liberation \
+    fonts-dejavu \
+    fonts-opensymbol \
     libfontconfig1 \
     python3 \
     make \
     g++ \
     build-essential \
+    default-jre \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
