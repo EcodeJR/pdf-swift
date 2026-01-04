@@ -16,10 +16,12 @@ const localStorage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const originalName = path.parse(file.originalname).name;
+    // Sanitize filename to prevent command injection
+    // Replace any character that isn't alphanumeric, dash, or underscore with an underscore
+    const safeName = path.parse(file.originalname).name.replace(/[^a-zA-Z0-9-_]/g, '_');
     const extension = path.extname(file.originalname);
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, `${originalName}-pdf-swift-${uniqueSuffix}${extension}`);
+    cb(null, `${safeName}-pdf-swift-${uniqueSuffix}${extension}`);
   }
 });
 
@@ -40,7 +42,7 @@ const createGridFsStorage = () => {
             bucketName: 'uploads',
             metadata: {
               userId: req.user ? req.user._id : null,
-              originalName: file.originalname,
+              originalName: file.originalname, // Keep original name for display only
               uploadDate: new Date(),
               expiresAt: req.user && req.user.isPremium
                 ? null
