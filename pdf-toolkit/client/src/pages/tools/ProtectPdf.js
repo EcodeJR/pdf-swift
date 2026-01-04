@@ -5,6 +5,7 @@ import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
 import { conversionAPI } from '../../services/api';
 import { FiDownload, FiLoader, FiLock } from 'react-icons/fi';
+import ToolContentSection from '../../components/ToolContentSection';
 
 const ProtectPdf = () => {
     const { user } = useAuth();
@@ -183,6 +184,46 @@ const ProtectPdf = () => {
                         </div>
                     )}
                 </div>
+
+                {/* Rich SEO Content */}
+                <ToolContentSection
+                    title="Password Protect PDF - Encrypt Online"
+                    content={{
+                        introduction: [
+                            "Secure your sensitive documents with military-grade encryption. Our Protect PDF tool allows you to add a strong password to your file, preventing unauthorized access.",
+                            "Whether sending financial statements, legal contracts, or personal records, ensuring only the intended recipient can open the file is crucial for data privacy and compliance."
+                        ],
+                        benefits: [
+                            "Strong AES-128/256 bit encryption",
+                            "Password required to open file",
+                            "Prevents printing or copying (optional)",
+                            "Fast and secure client-side processing",
+                            "Works on all devices",
+                            "No traces left on servers"
+                        ],
+                        howToSteps: [
+                            "Upload the PDF you want to protect.",
+                            "Enter a strong password.",
+                            "Confirm the password.",
+                            "Click 'Encrypt PDF'.",
+                            "Download your secure, password-locked file."
+                        ],
+                        faqs: [
+                            {
+                                question: "Can PDF Swift staff open my file?",
+                                answer: "No. The encryption happens securely. We do not store your password, so if you lose it, the file cannot be recovered by us."
+                            },
+                            {
+                                question: "How strong is the encryption?",
+                                answer: "We use standard AES encryption, which is the industry standard for securing PDF documents. It is extremely difficult to crack without the password."
+                            },
+                            {
+                                question: "Can I restrict printing?",
+                                answer: "Currently, we set a master password that locks the file from opening. Granular permissions (like disabling printing) are a feature coming soon."
+                            }
+                        ]
+                    }}
+                />
             </div>
 
             {showAdModal && convertedFile && (

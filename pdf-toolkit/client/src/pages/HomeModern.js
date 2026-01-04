@@ -209,6 +209,62 @@ const HomeModern = () => {
         </div>
       </section>
 
+      {/* Rich Content / About Section for AdSense */}
+      <section className="section bg-white border-t border-gray-100">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Professional Grade PDF Tools</h2>
+            <div className="w-20 h-1 bg-primary mx-auto rounded-full"></div>
+          </div>
+
+          <div className="prose prose-lg text-gray-600 max-w-none space-y-12">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Why PDF Swift?</h3>
+              <p className="leading-relaxed">
+                In today's digital landscape, document management should be seamless, secure, and instantaneous.
+                PDF Swift was built to solve the frustration of clunky, expensive, and unsafe PDF software.
+                Our platform leverages advanced server-side processing to handle complex document conversions
+                without slowing down your device. Whether you are a student merging lecture notes, a professional
+                compressing reports for email, or a business converting legal documents to Word, PDF Swift
+                provides a reliable, cloud-native solution.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">Privacy First Architecture</h3>
+                <p className="leading-relaxed">
+                  Security is not an afterthought; it is our foundation. We employ a "Zero-Retention" policy
+                  for free users—your files are automatically wiped from our servers within one hour of processing.
+                  All data in transit is encrypted using industry-standard SSL/TLS protocols, ensuring that your
+                  sensitive documents (contracts, financial records, personal data) remain strictly private between
+                  you and our secure processing engine.
+                </p>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">Preserving Document Integrity</h3>
+                <p className="leading-relaxed">
+                  Unlike basic converters that treat PDFs as images, our conversion engine parses the underlying
+                  document structure. We reconstruct fonts, tables, and layouts to ensure that your converted
+                  Word and Excel files are not just readable, but fully editable. This high-fidelity conversion
+                  saves you hours of reformatting time.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Our Technology Stack</h3>
+              <p className="leading-relaxed">
+                PDF Swift is powered by a robust stack of open-source technologies including LibreOffice for
+                rendering, Python for structural analysis, and Ghostscript for compression. By combining these
+                tools in a containerized environment, we deliver enterprise-grade performance that scales
+                automatically to handle large files and high traffic volumes.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="section bg-[var(--primary-600)] text-[var(--background)]">
         <GridPattern

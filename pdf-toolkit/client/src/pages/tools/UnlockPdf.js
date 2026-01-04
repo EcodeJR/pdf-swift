@@ -5,6 +5,7 @@ import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
 import { conversionAPI } from '../../services/api';
 import { FiDownload, FiLoader, FiUnlock } from 'react-icons/fi';
+import ToolContentSection from '../../components/ToolContentSection';
 
 const UnlockPdf = () => {
     const { user } = useAuth();
@@ -118,6 +119,46 @@ const UnlockPdf = () => {
                         </div>
                     )}
                 </div>
+
+                {/* Rich SEO Content */}
+                <ToolContentSection
+                    title="Unlock PDF - Remove Password"
+                    content={{
+                        introduction: [
+                            "Forgot the password to an old PDF, or tired of typing it in every time you open a frequently used document? Our Unlock PDF tool removes password security, giving you unrestricted access to your file.",
+                            "Note: You must know the password initially to remove it, or use this tool on files with weak owner-restrictions (like printing bans) that can sometimes be bypassed."
+                        ],
+                        benefits: [
+                            "Removes 'Open' passwords",
+                            "Removes printing/copying restrictions",
+                            "Creates a new, unsecured copy",
+                            "Fast server-side decryption",
+                            "Secure and private",
+                            "Instant download"
+                        ],
+                        howToSteps: [
+                            "Upload the password-protected PDF.",
+                            "If prompted, enter the current password to verify ownership.",
+                            "Click 'Unlock PDF'.",
+                            "Our engine strips the security layer.",
+                            "Download your new, password-free PDF."
+                        ],
+                        faqs: [
+                            {
+                                question: "Can you crack a password I verified?",
+                                answer: "For legal reasons, our tool primarily works to remove passwords you already know (for convenience) or to remove 'Owner' restrictions (like printing blocks). We do not brute-force strong user passwords."
+                            },
+                            {
+                                question: "Is it safe to upload locked files?",
+                                answer: "Yes. All uploads are encrypted via SSL. We do not store your file or the password after the process is complete."
+                            },
+                            {
+                                question: "Why did unlocking fail?",
+                                answer: "If the file has very strong AES-256 encryption and you do not provide the correct password, it cannot be unlocked. This is a security feature of the PDF format itself."
+                            }
+                        ]
+                    }}
+                />
             </div>
 
             {showAdModal && convertedFile && (

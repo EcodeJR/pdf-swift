@@ -5,6 +5,7 @@ import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
 import { conversionAPI } from '../../services/api';
 import { FiDownload, FiLoader, FiFileText } from 'react-icons/fi';
+import ToolContentSection from '../../components/ToolContentSection';
 
 const ExcelToPdf = () => {
   const { user } = useAuth();
@@ -103,6 +104,46 @@ const ExcelToPdf = () => {
             </div>
           )}
         </div>
+
+        {/* Rich SEO Content */}
+        <ToolContentSection
+          title="Convert Excel Sheets to PDF"
+          content={{
+            introduction: [
+              "Sending an Excel spreadsheet often results in messy, unreadable tables when the recipient opens it on a phone. The solution? Convert your Excel sheets to PDF.",
+              "Our Excel to PDF tool takes your spreadsheets (.xls or .xlsx) and formats them into clean, professional PDF pages. You can ensure that your financial reports, invoices, and data tables are presented exactly as intended, without the risk of accidental edits."
+            ],
+            benefits: [
+              "Fit-to-page formatting options",
+              "Prevents accidental data modification",
+              "Preserves table structure and cell borders",
+              "Professional presentation for reports",
+              "Works with both XLS and XLSX files",
+              "Fast and secure cloud conversion"
+            ],
+            howToSteps: [
+              "Select your Excel file (.xlsx or .xls).",
+              "Choose your preferred storage method.",
+              "Click 'Convert to PDF'.",
+              "Our engine formats your sheets for the page.",
+              "Download your professional PDF report."
+            ],
+            faqs: [
+              {
+                question: "How are pages split?",
+                answer: "Our engine attempts to fit columns to the page width where possible. For wide spreadsheets, the content will flow to subsequent pages."
+              },
+              {
+                question: "Can I convert multiple tabs?",
+                answer: "Yes, the tool converts all active sheets in your workbook into a single, multi-page PDF document."
+              },
+              {
+                question: "Is my financial data safe?",
+                answer: "Security is our priority. Your spreadsheets are processed over an encrypted connection and are strictly deleted from our servers after 1 hour (for free users)."
+              }
+            ]
+          }}
+        />
 
         {/* Features */}
         <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">

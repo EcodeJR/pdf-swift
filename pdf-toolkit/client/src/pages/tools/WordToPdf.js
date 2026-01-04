@@ -5,6 +5,7 @@ import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
 import { conversionAPI } from '../../services/api';
 import { FiDownload, FiLoader, FiFileText } from 'react-icons/fi';
+import ToolContentSection from '../../components/ToolContentSection';
 
 const WordToPdf = () => {
   const { user } = useAuth();
@@ -103,6 +104,46 @@ const WordToPdf = () => {
             </div>
           )}
         </div>
+
+        {/* Rich SEO Content */}
+        <ToolContentSection
+          title="Convert Word to PDF Free and Securely"
+          content={{
+            introduction: [
+              "Sharing Microsoft Word documents can be risky—formatting often shifts when opened on different devices. Our Word to PDF converter locks in your layout, ensuring your document looks exactly the same on every screen.",
+              "Whether it's a resume, a legal contract, or a school assignment, converting it to PDF is the best way to share it professionally. Our tool accepts both .doc and .docx formats and generates a high-quality PDF in seconds."
+            ],
+            benefits: [
+              "Preserves original layout and fonts",
+              "Locks content for professional sharing",
+              "Compatible with all PDF viewers",
+              "Supports both DOC and DOCX formats",
+              "Secure encryption during transfer",
+              "No watermarks on converted files"
+            ],
+            howToSteps: [
+              "Upload your Microsoft Word document.",
+              "Choose 'Temporary' or 'Cloud' storage.",
+              "Click 'Convert to PDF'.",
+              "We generate a print-ready PDF file.",
+              "Download and share your document with confidence."
+            ],
+            faqs: [
+              {
+                question: "Will my custom fonts be preserved?",
+                answer: "Yes. Our conversion engine embeds standard fonts to ensure your document looks consistent. For highly specialized fonts, we recommend embedding them in the Word file before uploading."
+              },
+              {
+                question: "Can I convert older .doc files?",
+                answer: "Absolutely. We support both the legacy .doc format (Word 97-2003) and the modern .docx format."
+              },
+              {
+                question: "Is it free?",
+                answer: "Yes, you can convert documents for free. We also offer a Premium plan for users who need to convert larger files or need unlimited daily processing."
+              }
+            ]
+          }}
+        />
 
         {/* Features */}
         <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -5,7 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
 import { conversionAPI } from '../../services/api';
-import { FiDownload, FiLoader } from 'react-icons/fi';
+import { FiDownload, FiLoader, FiFileText } from 'react-icons/fi';
+import ToolContentSection from '../../components/ToolContentSection';
 
 const PdfToExcel = () => {
   const { user, isAuthenticated } = useAuth();
@@ -94,6 +95,50 @@ const PdfToExcel = () => {
             </div>
           )}
         </div>
+
+        {/* Rich SEO Content */}
+        <ToolContentSection
+          title="Convert PDF to Excel Online"
+          content={{
+            introduction: [
+              "Extracting financial tables, invoices, or reports from PDF documents into Excel spreadsheets can be tedious. Our PDF to Excel converter automates this process, saving you hours of manual data entry.",
+              "Using advanced table recognition algorithms, we accurately identify rows and columns in your PDF and export them directly to a formatted Microsoft Excel (.xlsx) file. All data types are preserved, ensuring your spreadsheets are ready for analysis immediately."
+            ],
+            benefits: [
+              "Accurate table recognition and extraction",
+              "Preserves cell formatting and data types",
+              "Converts multi-page tables seamlessly",
+              "Secure processing with auto-deletion",
+              "No software installation needed",
+              "Works with scanned documents (OCR)"
+            ],
+            howToSteps: [
+              "Upload your PDF document containing tables.",
+              "Select your preferred storage mode.",
+              "Click 'Convert to Excel' to begin extraction.",
+              "Our engine analyzes the document structure.",
+              "Download your editable Excel (.xlsx) spreadsheet."
+            ],
+            faqs: [
+              {
+                question: "Will the formulas in my PDF be preserved?",
+                answer: "PDFs do not store Excel formulas, only the final values. Our tool extracts these values into cells. You can then re-apply formulas in Excel as needed."
+              },
+              {
+                question: "How does it handle merged cells?",
+                answer: "Our intelligent engine detects merged cells in the PDF layout and attempts to replicate that structure in the final Excel sheet to maintain the visual integrity of your table."
+              },
+              {
+                question: "Can I convert bank statements?",
+                answer: "Yes, our tool is excellent for converting bank statements to Excel for budgeting. However, always verify sensitive financial data after conversion."
+              },
+              {
+                question: "Is my data secure?",
+                answer: "Yes. We use enterprise-grade encryption for transmission. Your files, including sensitive financial documents, are permanently deleted from our servers after 1 hour."
+              }
+            ]
+          }}
+        />
       </div>
 
       {showAdModal && convertedFile && (

@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
 import { conversionAPI } from '../../services/api';
-import { FiDownload, FiLoader } from 'react-icons/fi';
+import { FiDownload, FiLoader, FiMinimize2 } from 'react-icons/fi';
+import ToolContentSection from '../../components/ToolContentSection';
 
 const CompressPdf = () => {
   const { user } = useAuth();
@@ -135,6 +136,46 @@ const CompressPdf = () => {
             </div>
           )}
         </div>
+
+        {/* Rich SEO Content */}
+        <ToolContentSection
+          title="Compress PDF File Size Online"
+          content={{
+            introduction: [
+              "Is your PDF too large to email or upload to a website portal? Our PDF Compressor significantly reduces file size without compromising readability. We use smart compression algorithms to optimize images and fonts.",
+              "Whether you have a 50MB marketing brochure or a scanned contract that needs to be under 2MB, our tool analyzes your file and removes unnecessary data overhead, making it light and easy to share."
+            ],
+            benefits: [
+              "Reduces file size by up to 80%",
+              "Maintains visual quality for reading",
+              "Optimizes images and font subsets",
+              "Fast processing in the cloud",
+              "Secure handling of confidential docs",
+              "Compatible with all email providers"
+            ],
+            howToSteps: [
+              "Upload your large PDF file.",
+              "Select your storage preference.",
+              "Click 'Compress PDF'.",
+              "Our engine optimizes the file structure.",
+              "Download your smaller, lighter PDF."
+            ],
+            faqs: [
+              {
+                question: "How much will my file size be reduced?",
+                answer: "Compression ratios vary depending on the content. Text-heavy files see moderate reduction, while image-heavy files (scans, brochures) can often be reduced by 50-80%."
+              },
+              {
+                question: "Will readability be affected?",
+                answer: "Our default compression setting balances quality and size. Text remains sharp, while images are optimized to a standard suitable for screen viewing and email."
+              },
+              {
+                question: "Why is my PDF so big?",
+                answer: "PDFs often contain high-resolution images, full font sets, and hidden metadata. Our compressor strips away this invisible weight without changing the visible content."
+              }
+            ]
+          }}
+        />
       </div>
 
       {showAdModal && convertedFile && (

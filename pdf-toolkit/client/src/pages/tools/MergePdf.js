@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
 import { conversionAPI } from '../../services/api';
-import { FiDownload, FiLoader, FiTrash2, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiDownload, FiLoader, FiX, FiMove } from 'react-icons/fi';
+import ToolContentSection from '../../components/ToolContentSection';
 
 const MergePdf = () => {
   const { user } = useAuth();
@@ -86,6 +87,46 @@ const MergePdf = () => {
             </div>
           )}
         </div>
+
+        {/* Rich SEO Content */}
+        <ToolContentSection
+          title="Merge PDF Files Online"
+          content={{
+            introduction: [
+              "Stop sending five separate attachments in one email. Use our PDF Merger to combine multiple PDF documents into a single, organized file. It's perfect for consolidating reports, invoices, or chapters of a book.",
+              "Our drag-and-drop interface makes it easy to arrange your files in the exact order you want. Once merged, you get one clean file that's easy to store, share, and print."
+            ],
+            benefits: [
+              "Combine unlimited PDF pages",
+              "Drag-and-drop reordering",
+              "Maintains original formatting",
+              "Fast server-side processing",
+              "Works on Mac, Windows, and Linux",
+              "Simple and intuitive interface"
+            ],
+            howToSteps: [
+              "Upload all the PDF files you want to merge.",
+              "Drag the thumbnails to rearrange their order.",
+              "Choose your preferred storage output.",
+              "Click 'Merge PDF' to combine them.",
+              "Download your single, unified document."
+            ],
+            faqs: [
+              {
+                question: "Can I merge PDF files with different page sizes?",
+                answer: "Yes! Our merger handles documents with mixed orientations (landscape/portrait) and different page sizes seamlessly."
+              },
+              {
+                question: "Is there a limit on the number of files?",
+                answer: "Free users can merge multiple files up to a combined size of 10MB. Premium users enjoy higher limits and faster processing for large batches."
+              },
+              {
+                question: "Can I merge password-protected files?",
+                answer: "You will need to unlock password-protected files first using our 'Unlock PDF' tool before they can be merged."
+              }
+            ]
+          }}
+        />
 
         {/* Features */}
         <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">

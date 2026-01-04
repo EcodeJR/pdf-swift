@@ -7,6 +7,7 @@ import VideoAdModal from '../../components/VideoAdModal';
 import api from '../../services/api';
 import { logEvent } from '../../services/analytics';
 import { FiUpload, FiEdit3, FiCheckCircle } from 'react-icons/fi';
+import ToolContentSection from '../../components/ToolContentSection';
 
 const EditPdf = () => {
   const { user } = useAuth();
@@ -308,26 +309,70 @@ const EditPdf = () => {
         </div>
       </div>
 
+      {/* Rich SEO Content */}
+      <ToolContentSection
+        title="Edit PDF Online - Add Text and Shapes"
+        content={{
+          introduction: [
+            "Need to fill out a form or add notes to a PDF? Our online PDF Editor allows you to add text, shapes, and highlights directly to your document without expensive software.",
+            "Whether you need to fill in a job application, highlight key points in a study guide, or blackout sensitive information, our intuitive editor makes it simple and fast."
+          ],
+          benefits: [
+            "Add text, checkmarks, and shapes",
+            "Highlight and annotate text",
+            "Draw freehand signatures",
+            "No account required for quick edits",
+            "Works in your browser",
+            "Cloud-based secure processing"
+          ],
+          howToSteps: [
+            "Upload your PDF document.",
+            "Choose the tool (Text, Pen, Shape) from the toolbar.",
+            "Click on the page to add your annotation.",
+            "Customize color, size, and position.",
+            "Click 'Save & Download' to get your edited PDF."
+          ],
+          faqs: [
+            {
+              question: "Can I edit existing text?",
+              answer: "Currently, our tool is an 'annotator', meaning adding new content (text, shapes, signatures) on top of the PDF. To edit existing underlying text, we recommend converting PDF to Word first."
+            },
+            {
+              question: "Is it free to use?",
+              answer: "Yes, all basic editing tools like adding text and drawing are free to use."
+            },
+            {
+              question: "Can I save my progress?",
+              answer: "If you are logged in, you can save the file to your cloud storage and continue working on it later. Guest users must download their finished file within the session."
+            }
+          ]
+        }}
+      />
+
       {/* PDF Editor Modal */}
-      {showEditor && selectedFile && (
-        <PdfEditorAdvanced
-          file={selectedFile}
-          onSave={handleSaveEdits}
-          onCancel={() => setShowEditor(false)}
-        />
-      )}
+      {
+        showEditor && selectedFile && (
+          <PdfEditorAdvanced
+            file={selectedFile}
+            onSave={handleSaveEdits}
+            onCancel={() => setShowEditor(false)}
+          />
+        )
+      }
 
       {/* Video Ad Modal */}
-      {showAdModal && result && (
-        <VideoAdModal
-          isOpen={showAdModal}
-          onClose={() => setShowAdModal(false)}
-          onAdComplete={() => toast.success('PDF edited successfully!')}
-          downloadUrl={result.downloadUrl}
-          fileName={result.fileName}
-        />
-      )}
-    </div>
+      {
+        showAdModal && result && (
+          <VideoAdModal
+            isOpen={showAdModal}
+            onClose={() => setShowAdModal(false)}
+            onAdComplete={() => toast.success('PDF edited successfully!')}
+            downloadUrl={result.downloadUrl}
+            fileName={result.fileName}
+          />
+        )
+      }
+    </div >
   );
 };
 

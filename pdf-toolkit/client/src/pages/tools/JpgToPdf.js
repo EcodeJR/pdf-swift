@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
 import { conversionAPI } from '../../services/api';
-import { FiDownload, FiLoader } from 'react-icons/fi';
+import { FiDownload, FiLoader, FiImage } from 'react-icons/fi';
+import ToolContentSection from '../../components/ToolContentSection';
 
 const JpgToPdf = () => {
   const { user } = useAuth();
@@ -86,6 +87,46 @@ const JpgToPdf = () => {
             </div>
           )}
         </div>
+
+        {/* Rich SEO Content */}
+        <ToolContentSection
+          title="Convert JPG to PDF - Combine Images"
+          content={{
+            introduction: [
+              "Have a collection of photos or scanned documents that you need to combine into a single file? Our JPG to PDF converter allows you to merge multiple image files into one professional PDF document.",
+              "Whether it's a portfolio of your design work, a series of scanned receipts for an expense report, or photos of your handwritten notes, our tool organizes them into a clean, shareable PDF format in seconds."
+            ],
+            benefits: [
+              "Combines multiple images into one PDF",
+              "Supports JPG, PNG, and JPEG formats",
+              "Auto-rotates and centers images",
+              "Adjusts page size automatically",
+              "Drag-and-drop ordering of pages",
+              "Instant download, no watermarks"
+            ],
+            howToSteps: [
+              "Upload your image files (JPG/PNG).",
+              "Drag and drop to rearrange the order.",
+              "Select 'Cloud' or 'Temporary' storage.",
+              "Click 'Convert to PDF'.",
+              "Download your single, combined PDF document."
+            ],
+            faqs: [
+              {
+                question: "Can I convert PNG files too?",
+                answer: "Yes! Our tool supports JPG, JPEG, and PNG image formats. You can even mix different formats in the same conversion batch."
+              },
+              {
+                question: "Is there a limit to how many images I can add?",
+                answer: "Free users can combine multiple images up to a total file size of 10MB. Premium users can process significantly larger batches with priority processing."
+              },
+              {
+                question: "How do I change the order of images?",
+                answer: "Before hitting 'Convert', you can simply drag the uploaded image thumbnails into your desired sequence."
+              }
+            ]
+          }}
+        />
       </div>
 
       {showAdModal && convertedFile && (

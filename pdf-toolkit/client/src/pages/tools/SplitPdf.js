@@ -5,6 +5,7 @@ import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
 import { conversionAPI } from '../../services/api';
 import { FiDownload, FiLoader } from 'react-icons/fi';
+import ToolContentSection from '../../components/ToolContentSection';
 
 const SplitPdf = () => {
   const { user } = useAuth();
@@ -92,6 +93,46 @@ const SplitPdf = () => {
               'Split PDF'
             )}
           </button>
+
+          {/* Rich SEO Content */}
+          <ToolContentSection
+            title="Split PDF Online - Extract Pages"
+            content={{
+              introduction: [
+                "Need to extract specific pages from a large PDF document? Our PDF Splitter gives you complete control. You can separate a single page, a range of pages, or split an entire document into individual PDF files.",
+                "This tool is perfect for extracting a single invoice from a monthly statement, removing unwanted cover pages, or breaking down a large ebook into chapters."
+              ],
+              benefits: [
+                "Extract specific page ranges (e.g., 1-5, 8, 11-13)",
+                "Split every page into a separate file",
+                "Instant preview of pages",
+                "Fast and secure cloud processing",
+                "Zero quality loss",
+                "Free to use without registration"
+              ],
+              howToSteps: [
+                "Upload the PDF you want to split.",
+                "Enter the page numbers or ranges you want to extract.",
+                "Select 'Split into single files' if desired.",
+                "Click 'Split PDF' to process.",
+                "Download your new, smaller PDF files."
+              ],
+              faqs: [
+                {
+                  question: "Can I extract non-consecutive pages?",
+                  answer: "Yes! You can enter specific pages separated by commas (e.g., '1, 5, 10') or ranges (e.g., '1-5, 8-10') to get exactly what you need."
+                },
+                {
+                  question: "Will the quality of the pages change?",
+                  answer: "No. Our tool extracts the pages exactly as they are in the original document without re-compressing them, so the quality remains identical."
+                },
+                {
+                  question: "Is there a page limit?",
+                  answer: "Free users can split documents up to 50 pages long. Premium users can process much larger documents with hundreds of pages."
+                }
+              ]
+            }}
+          />
 
           {convertedFile && user && user.isPremium && (
             <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">

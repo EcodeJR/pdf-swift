@@ -5,6 +5,7 @@ import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
 import { conversionAPI } from '../../services/api';
 import { FiDownload, FiLoader } from 'react-icons/fi';
+import ToolContentSection from '../../components/ToolContentSection';
 
 const PdfToWord = () => {
   const { user, isAuthenticated } = useAuth();
@@ -191,8 +192,52 @@ const PdfToWord = () => {
           </div>
         </div>
 
+        {/* Rich SEO Content */}
+        <ToolContentSection
+          title="Convert PDF to Word Online for Free"
+          content={{
+            introduction: [
+              "Converting PDF documents to editable Microsoft Word files shouldn't be a hassle. Our PDF to Word converter uses advanced optical character recognition (OCR) and layout analysis to accurately reconstruct your documents.",
+              "Whether you have a scanned invoice, a legal contract, or a research paper, our tool preserves the original fonts, formatting, and tables. No more retyping text or manually fixing broken layouts—get a clean, editable DOCX file in seconds."
+            ],
+            benefits: [
+              "Preserves original layout, tables, and images",
+              "Supports scanned PDFs (OCR technology)",
+              "Fast server-side processing",
+              "Secure handling with 1-hour auto-deletion",
+              "Works on all devices (Windows, Mac, Mobile)",
+              "No software installation required"
+            ],
+            howToSteps: [
+              "Click the 'Select PDF File' box above or drag and drop your file.",
+              "Choose your storage preference (Temporary vs. Cloud).",
+              "Click the 'Convert to Word' button to start the process.",
+              "Wait a few seconds for our engine to analyze and convert the file.",
+              "Download your new Word document (.docx) instantly."
+            ],
+            faqs: [
+              {
+                question: "Will my document formatting be preserved?",
+                answer: "Yes! We use advanced conversion algorithms (powered by Python and LibreOffice) to ensure that paragraphs, tables, images, and fonts are transferred to the Word document as accurately as possible."
+              },
+              {
+                question: "Is it safe to convert sensitive documents?",
+                answer: "Absolutely. We use SSL encryption for all file transfers. For free users, files are stored temporarily for processing and are automatically deleted from our servers after 1 hour. We do not read or share your document content."
+              },
+              {
+                question: "Can I convert scanned PDFs?",
+                answer: "Yes, our tool includes basic OCR capabilities to extract text from scanned images, making them editable in Word."
+              },
+              {
+                question: "Is there a file size limit?",
+                answer: "Free users can convert files up to 10MB. Premium users enjoy increased limits up to 50MB per file and priority processing speeds."
+              }
+            ]
+          }}
+        />
+
         {/* Related Tools */}
-        <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="bg-white rounded-lg shadow-lg p-8 mt-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Related Tools</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <a href="/pdf-to-excel" className="text-center p-4 border border-gray-200 rounded-lg hover:border-primary-500 hover:shadow">

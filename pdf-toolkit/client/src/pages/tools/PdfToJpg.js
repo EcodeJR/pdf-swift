@@ -5,6 +5,7 @@ import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
 import { conversionAPI } from '../../services/api';
 import { FiDownload, FiLoader, FiImage } from 'react-icons/fi';
+import ToolContentSection from '../../components/ToolContentSection';
 
 const PdfToJpg = () => {
   const { user } = useAuth();
@@ -100,6 +101,46 @@ const PdfToJpg = () => {
             </div>
           )}
         </div>
+
+        {/* Rich SEO Content */}
+        <ToolContentSection
+          title="Convert PDF to JPG Images High Quality"
+          content={{
+            introduction: [
+              "Need to turn a PDF page into an image for social media, a presentation, or a website? Our PDF to JPG converter transforms each page of your document into a high-resolution image file.",
+              "Unlike screenshots which lose quality, our tool renders the PDF pages at high DPI (Dots Per Inch) to ensure text remains crisp and images stay sharp. You can convert limitless pages in a single click."
+            ],
+            benefits: [
+              "High-resolution image output (300 DPI)",
+              "Converts every page to a separate image",
+              "Maintains color accuracy",
+              "Download as a ZIP archive for multiple pages",
+              "Instant processing in the cloud",
+              "Privacy guaranteed with auto-deletion"
+            ],
+            howToSteps: [
+              "Select the PDF file you want to convert.",
+              "Choose 'Temporary' or 'Cloud' storage.",
+              "Click 'Convert to JPG'.",
+              "We process each page into a high-quality image.",
+              "Download a ZIP file containing all your images."
+            ],
+            faqs: [
+              {
+                question: "What is the quality of the converted images?",
+                answer: "We render images at high resolution, suitable for printing or professional use. Text will remain legible and clear."
+              },
+              {
+                question: "Can I convert just one page?",
+                answer: "Currently, our tool converts the entire document. You can easily select the specific image files you need from the downloaded folder."
+              },
+              {
+                question: "Are the images compatible with Instagram?",
+                answer: "Yes, the output files are standard JPGs, which are compatible with Instagram, Facebook, LinkedIn, and all major web platforms."
+              }
+            ]
+          }}
+        />
 
         {/* Features */}
         <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">

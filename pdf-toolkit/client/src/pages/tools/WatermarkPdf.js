@@ -5,6 +5,7 @@ import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
 import { conversionAPI } from '../../services/api';
 import { FiDownload, FiLoader, FiType, FiImage } from 'react-icons/fi';
+import ToolContentSection from '../../components/ToolContentSection';
 
 const WatermarkPdf = () => {
     const { user } = useAuth();
@@ -88,6 +89,46 @@ const WatermarkPdf = () => {
                         maxSize={user?.isPremium ? 50 * 1024 * 1024 : 10 * 1024 * 1024}
                         selectedFiles={selectedFiles}
                         onRemoveFile={(i) => setSelectedFiles([])}
+                    />
+
+                    {/* Rich SEO Content */}
+                    <ToolContentSection
+                        title="Add Watermark to PDF Online"
+                        content={{
+                            introduction: [
+                                "Protect your specialized content and intellectual property. Our Watermark PDF tool allows you to stamp your documents with custom text or images to prevent unauthorized use.",
+                                "Perfect for marking drafts as 'Confidential', adding your company logo to reports, or ensuring your creative portfolio is attributed to you. You have full control over opacity, position, and rotation."
+                            ],
+                            benefits: [
+                                "Add text or image watermarks",
+                                "Customize font, color, and size",
+                                "Control transparency (opacity)",
+                                "Apply to all pages or specific ranges",
+                                "Batch process multiple files (Premium)",
+                                "Instant changes with live preview"
+                            ],
+                            howToSteps: [
+                                "Upload your PDF file.",
+                                "Type your text or upload a logo image.",
+                                "Adjust the position, transparency, and rotation.",
+                                "Click 'Apply Watermark'.",
+                                "Download your protected document."
+                            ],
+                            faqs: [
+                                {
+                                    question: "Can I add a logo image?",
+                                    answer: "Yes! You can upload a PNG or JPG file (like a company logo) and place it anywhere on the page."
+                                },
+                                {
+                                    question: "Will the watermark be removable?",
+                                    answer: "We 'flatten' the watermark into the document layers, making it very difficult for average users to remove without specialized software."
+                                },
+                                {
+                                    question: "Can I watermark multiple files at once?",
+                                    answer: "Batch watermarking is a feature available to our Premium subscribers, allowing you to stamp hundreds of files in seconds."
+                                }
+                            ]
+                        }}
                     />
 
                     {selectedFiles.length > 0 && (
