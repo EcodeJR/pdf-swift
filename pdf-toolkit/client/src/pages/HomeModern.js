@@ -283,7 +283,7 @@ const HomeModern = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             {!user ? (
               <>
-                <Link to="/register" className="btn-primary">
+                <Link to="/register" className="btn-primary bg-white text-primary hover:bg-gray-50 shadow-lg hover:shadow-xl">
                   Create Free Account
                 </Link>
                 <Link to="/pricing" className="btn-secondary border-white text-white hover:bg-white hover:text-dark">

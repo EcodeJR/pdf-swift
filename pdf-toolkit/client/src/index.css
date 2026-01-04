@@ -50,7 +50,7 @@
 
   /* Button Components */
   .btn-primary {
-    @apply bg-[var(--primary)] text-[var(--background)] px-8 py-4 rounded-md font-semibold text-body-sm;
+    @apply inline-flex items-center justify-center bg-[var(--primary)] text-[var(--background)] px-8 py-4 rounded-md font-semibold text-body-sm no-underline;
     @apply shadow-primary hover:brightness-110 hover:-translate-y-0.5 hover:shadow-primary-lg;
     @apply transition-all duration-300 ease-smooth cursor-pointer border-none;
   }
@@ -120,6 +120,7 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
