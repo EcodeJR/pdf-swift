@@ -13,9 +13,15 @@ def convert_pdf_to_word(pdf_file, docx_file):
         print(f"Starting conversion: {pdf_file} -> {docx_file}")
         
         # Convert
-        cv = Converter(pdf_file)
+        # Settings to improve layout fidelity and background handling
+        settings = {
+            "connected_text": True,      # Merge connected text blocks to prevent fragmentation
+            "ocr": 0,                    # Disable OCR to avoid conflicts with image layers
+            "ignore_page_error": True    # Continue conversion even if some pages have errors
+        }
+        
         # Convert start to end, without multi-processing for stability in container
-        cv.convert(docx_file, start=0, end=None)
+        cv.convert(docx_file, start=0, end=None, **settings)
         
         print("Conversion successful")
         
