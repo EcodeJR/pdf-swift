@@ -19,7 +19,10 @@ def convert_pdf_to_word(pdf_file, docx_file):
         settings = {
             "connected_text": True,      # Merge connected text blocks to prevent fragmentation
             "ocr": 0,                    # Disable OCR to avoid conflicts with image layers
-            "ignore_page_error": True    # Continue conversion even if some pages have errors
+            "ignore_page_error": True,   # Continue conversion even if some pages have errors
+            "clip_image_res_ratio": 4.0, # Higher resolution for clipped images (like barcodes)
+            "zoom": 4.0,                 # Overall zoom for image extraction
+            "float_image": True          # Keep images floating to preserve exact coordinates
         }
         
         # Convert start to end, without multi-processing for stability in container
