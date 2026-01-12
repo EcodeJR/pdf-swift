@@ -13,6 +13,8 @@ def convert_pdf_to_word(pdf_file, docx_file):
         print(f"Starting conversion: {pdf_file} -> {docx_file}")
         
         # Convert
+        cv = Converter(pdf_file)
+        
         # Settings to improve layout fidelity and background handling
         settings = {
             "connected_text": True,      # Merge connected text blocks to prevent fragmentation
@@ -26,7 +28,7 @@ def convert_pdf_to_word(pdf_file, docx_file):
         print("Conversion successful")
         
     except Exception as e:
-        print(f"Error during conversion: {str(e)}")
+        sys.stderr.write(f"Error during conversion: {str(e)}\n")
         sys.exit(1)
     finally:
         if cv:
