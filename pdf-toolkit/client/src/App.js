@@ -16,6 +16,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import CookieConsent from './components/CookieConsent';
 import ScrollToTop from './components/ScrollToTop';
 import LoadingPage from './components/LoadingPage';
+import AdBanner from './components/AdBanner';
 
 // Pages
 import Home from './pages/HomeModern';
@@ -149,6 +150,9 @@ function App() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>
+              <div className="container mx-auto px-4 py-8">
+                <AdBanner />
+              </div>
               <Footer />
 
               {/* Cookie Consent Banner */}
