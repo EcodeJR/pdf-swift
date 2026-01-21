@@ -137,4 +137,12 @@ export const userAPI = {
   },
 };
 
+// Contact API
+export const contactAPI = {
+  sendMessage: async (data) => {
+    const response = await api.post('/contact', data);
+    return response.data;
+  },
+};
+
 export default api;

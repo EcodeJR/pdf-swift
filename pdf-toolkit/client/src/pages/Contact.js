@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import axios from 'axios';
+import { contactAPI } from '../services/api';
 import { FiMail, FiPhone, FiMapPin, FiSend } from 'react-icons/fi';
 import { GridPattern } from '../components/GridPattern';
 
@@ -30,7 +30,7 @@ const Contact = () => {
 
         setLoading(true);
         try {
-            await axios.post('http://localhost:5000/api/contact', formData);
+            await contactAPI.sendMessage(formData);
             toast.success('Thank you! Your message has been sent. We\'ll get back to you soon.');
             setFormData({ name: '', email: '', subject: '', message: '' });
         } catch (error) {
