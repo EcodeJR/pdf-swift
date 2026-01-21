@@ -18,40 +18,6 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
     }
   }, [isOpen, adDuration]);
 
-  useEffect(() => {
-    if (isOpen && !adCompleted) {
-      // Start countdown
-      const timer = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            // Complete the ad when countdown finishes
-            if (!adCompleteCalled.current) {
-              adCompleteCalled.current = true;
-              // Use setTimeout to ensure state updates happen after this render cycle
-              setTimeout(() => {
-                setAdCompleted(true);
-                onAdComplete();
-                // Auto-download after ad completes (only if not already started)
-                setTimeout(() => {
-                  if (!downloadStarted.current) {
-                    handleDownload();
-                  }
-                }, 500);
-              }, 0);
-            }
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      // For production, initialize Google IMA SDK here
-      // This is a simplified version for development
-
-      return () => clearInterval(timer);
-    }
-  }, [isOpen, adCompleted, onAdComplete, handleDownload]);
-
   const handleDownload = React.useCallback(async () => {
     // Prevent multiple simultaneous downloads
     if (downloadStarted.current) {
@@ -93,6 +59,40 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
       }
     }
   }, [downloadUrl, fileName, onClose]);
+
+  useEffect(() => {
+    if (isOpen && !adCompleted) {
+      // Start countdown
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            // Complete the ad when countdown finishes
+            if (!adCompleteCalled.current) {
+              adCompleteCalled.current = true;
+              // Use setTimeout to ensure state updates happen after this render cycle
+              setTimeout(() => {
+                setAdCompleted(true);
+                onAdComplete();
+                // Auto-download after ad completes (only if not already started)
+                setTimeout(() => {
+                  if (!downloadStarted.current) {
+                    handleDownload();
+                  }
+                }, 500);
+              }, 0);
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      // For production, initialize Google IMA SDK here
+      // This is a simplified version for development
+
+      return () => clearInterval(timer);
+    }
+  }, [isOpen, adCompleted, onAdComplete, handleDownload]);
 
   if (!isOpen) return null;
 

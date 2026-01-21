@@ -11,6 +11,18 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchStats = React.useCallback(async () => {
+    try {
+      const data = await userAPI.getStats();
+      setStats(data);
+      refreshUser();
+    } catch (error) {
+      toast.error('Failed to load statistics');
+    } finally {
+      setLoading(false);
+    }
+  }, [refreshUser]);
+
   useEffect(() => {
     fetchStats();
 
@@ -37,18 +49,6 @@ const Dashboard = () => {
       clearInterval(interval);
     };
   }, [fetchStats]);
-
-  const fetchStats = React.useCallback(async () => {
-    try {
-      const data = await userAPI.getStats();
-      setStats(data);
-      refreshUser();
-    } catch (error) {
-      toast.error('Failed to load statistics');
-    } finally {
-      setLoading(false);
-    }
-  }, [refreshUser]);
 
   if (loading) {
     return (
