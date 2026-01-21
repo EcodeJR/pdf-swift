@@ -8,7 +8,7 @@ import { useTheme } from '../context/ThemeContext';
 
 const Settings = () => {
   const { user, refreshUser, logout } = useAuth();
-  const { theme, toggleTheme, setExplicitTheme } = useTheme();
+  const { setExplicitTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   const [editName, setEditName] = useState(user?.name || '');

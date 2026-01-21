@@ -42,8 +42,10 @@ export const logEvent = (category, action, label, value) => {
     }
 };
 
-export default {
+const analytics = {
     initGA,
     logPageView,
     logEvent
 };
+
+export default analytics;

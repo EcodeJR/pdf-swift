@@ -5,16 +5,16 @@ import { useAuth } from '../../context/AuthContext';
 import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
 import { conversionAPI } from '../../services/api';
-import { FiDownload, FiLoader, FiFileText } from 'react-icons/fi';
+import { FiDownload, FiLoader } from 'react-icons/fi';
 import ToolContentSection from '../../components/ToolContentSection';
 
 const PdfToExcel = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [convertedFile, setConvertedFile] = useState(null);
   const [showAdModal, setShowAdModal] = useState(false);
-  const [storageType, setStorageType] = useState('temporary');
+  const [storageType] = useState('temporary');
 
   const handleConvert = async () => {
     if (selectedFiles.length === 0) {

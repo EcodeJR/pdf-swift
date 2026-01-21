@@ -15,7 +15,6 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
   const [loadError, setLoadError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showProperties, setShowProperties] = useState(window.innerWidth >= 768);
-  const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef(null);
 
   // Tools
@@ -66,7 +65,6 @@ const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
     const updateWidth = () => {
       if (containerRef.current) {
         const width = containerRef.current.offsetWidth - 32; // subtracting padding
-        setContainerWidth(width);
 
         // Auto-scale on mobile
         if (window.innerWidth < 768 && width > 0) {

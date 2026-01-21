@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import FileUploader from '../../components/FileUploader';
 import VideoAdModal from '../../components/VideoAdModal';
 import { conversionAPI } from '../../services/api';
-import { FiDownload, FiLoader, FiImage } from 'react-icons/fi';
+import { FiDownload, FiLoader } from 'react-icons/fi';
 import ToolContentSection from '../../components/ToolContentSection';
 
 const JpgToPdf = () => {

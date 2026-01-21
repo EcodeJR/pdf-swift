@@ -120,13 +120,13 @@ const Footer = () => {
             © {currentYear} PDF SWIFT. All rights reserved.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
-            <a href="https://x.com/EcodeJR" target="_blank" className="text-gray-400 hover:text-white">
+            <a href="https://x.com/EcodeJR" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white">
               <FiTwitter className="w-5 h-5" />
             </a>
-            <a href="https://www.facebook.com/share/1ZCZT8PgWR/" target="_blank" className="text-gray-400 hover:text-white">
+            <a href="https://www.facebook.com/share/1ZCZT8PgWR/" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white">
               <FiFacebook className="w-5 h-5" />
             </a>
-            <a href="https://www.linkedin.com/in/emmanuel-dalyop-5b6a1b178?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app" target="_blank" className="text-gray-400 hover:text-white">
+            <a href="https://www.linkedin.com/in/emmanuel-dalyop-5b6a1b178?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white">
               <FiLinkedin className="w-5 h-5" />
             </a>
           </div>

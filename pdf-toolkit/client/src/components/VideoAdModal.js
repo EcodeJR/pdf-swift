@@ -50,9 +50,9 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
 
       return () => clearInterval(timer);
     }
-  }, [isOpen, adCompleted, onAdComplete]);
+  }, [isOpen, adCompleted, onAdComplete, handleDownload]);
 
-  const handleDownload = async () => {
+  const handleDownload = React.useCallback(async () => {
     // Prevent multiple simultaneous downloads
     if (downloadStarted.current) {
       console.log('Download already in progress, skipping...');
@@ -84,14 +84,15 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
         // Close modal after download starts
         setTimeout(() => onClose(), 1000);
       } catch (error) {
-        console.error('Download error:', error);
+        console.error('AdSense error:', error);
+        setAdError(true);
         downloadStarted.current = false; // Reset on error so user can retry
         // Fallback to direct window open if fetch fails
         window.open(downloadUrl, '_blank');
         setTimeout(() => onClose(), 1000);
       }
     }
-  };
+  }, [downloadUrl, fileName, onClose]);
 
   if (!isOpen) return null;
 

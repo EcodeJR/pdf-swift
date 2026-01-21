@@ -36,9 +36,9 @@ const Dashboard = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(interval);
     };
-  }, []);
+  }, [fetchStats]);
 
-  const fetchStats = async () => {
+  const fetchStats = React.useCallback(async () => {
     try {
       const data = await userAPI.getStats();
       setStats(data);
@@ -48,7 +48,7 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [refreshUser]);
 
   if (loading) {
     return (
