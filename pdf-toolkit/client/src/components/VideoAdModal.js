@@ -237,10 +237,13 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
   // NEW: Separate useEffect for AdSense initialization
   useEffect(() => {
     if (isOpen && !adCompleted && !adInitialized.current && adContainerRef.current) {
+      // FIXED: Capture the current ref value at the start of the effect
+      const adElement = adContainerRef.current;
+      
       const loadAdSense = () => {
         try {
           // Check if the ad container already has an ad loaded
-          const isAlreadyLoaded = adContainerRef.current?.getAttribute('data-adsbygoogle-status');
+          const isAlreadyLoaded = adElement?.getAttribute('data-adsbygoogle-status');
           
           if (!isAlreadyLoaded && window.adsbygoogle) {
             (window.adsbygoogle = window.adsbygoogle || []).push({});
@@ -258,9 +261,7 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
 
       return () => {
         clearTimeout(adTimer);
-        // FIXED: Capture the current ref value for cleanup
-        const adElement = adContainerRef.current;
-        // Cleanup: Remove ad status when unmounting
+        // Cleanup: Remove ad status when unmounting using captured ref
         if (adElement) {
           adElement.removeAttribute('data-adsbygoogle-status');
         }
