@@ -258,9 +258,11 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
 
       return () => {
         clearTimeout(adTimer);
+        // FIXED: Capture the current ref value for cleanup
+        const adElement = adContainerRef.current;
         // Cleanup: Remove ad status when unmounting
-        if (adContainerRef.current) {
-          adContainerRef.current.removeAttribute('data-adsbygoogle-status');
+        if (adElement) {
+          adElement.removeAttribute('data-adsbygoogle-status');
         }
       };
     }
