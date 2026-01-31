@@ -236,37 +236,47 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
 
   // NEW: Separate useEffect for AdSense initialization
   useEffect(() => {
-    if (isOpen && !adCompleted && !adInitialized.current && adContainerRef.current) {
-      // FIXED: Capture the current ref value at the start of the effect
-      const adElement = adContainerRef.current;
-      
-      const loadAdSense = () => {
-        try {
-          // Check if the ad container already has an ad loaded
-          const isAlreadyLoaded = adElement?.getAttribute('data-adsbygoogle-status');
-          
-          if (!isAlreadyLoaded && window.adsbygoogle) {
-            (window.adsbygoogle = window.adsbygoogle || []).push({});
-            adInitialized.current = true;
-            console.log('AdSense video ad initialized');
-          }
-        } catch (error) {
-          console.error('AdSense error:', error);
-          setAdError(true);
-        }
-      };
-
-      // Small delay to ensure DOM is ready
-      const adTimer = setTimeout(loadAdSense, 100);
-
-      return () => {
-        clearTimeout(adTimer);
-        // Cleanup: Remove ad status when unmounting using captured ref
-        if (adElement) {
-          adElement.removeAttribute('data-adsbygoogle-status');
-        }
-      };
+    // Only run when modal is open, ad not completed, not already initialized, and element exists
+    if (!isOpen || adCompleted || adInitialized.current || !adContainerRef.current) {
+      return;
     }
+
+    // FIXED: Capture the current ref value at the start of the effect
+    const adElement = adContainerRef.current;
+    
+    const loadAdSense = () => {
+      try {
+        // Double-check element still exists and has width
+        if (!adElement || adElement.offsetWidth === 0) {
+          console.log('AdSense: Container not ready, skipping...');
+          return;
+        }
+
+        // Check if the ad container already has an ad loaded
+        const isAlreadyLoaded = adElement.getAttribute('data-adsbygoogle-status');
+        
+        if (isAlreadyLoaded) {
+          console.log('AdSense: Ad already loaded, skipping...');
+          return;
+        }
+        
+        if (window.adsbygoogle) {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+          adInitialized.current = true;
+          console.log('AdSense video ad initialized');
+        }
+      } catch (error) {
+        console.error('AdSense error:', error);
+        setAdError(true);
+      }
+    };
+
+    // Longer delay to ensure modal is fully visible
+    const adTimer = setTimeout(loadAdSense, 300);
+
+    return () => {
+      clearTimeout(adTimer);
+    };
   }, [isOpen, adCompleted]);
 
   useEffect(() => {
@@ -314,12 +324,13 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
 
         {!adCompleted ? (
           <>
-            <div className="bg-gray-900 rounded-lg aspect-video flex items-center justify-center mb-4">
+            <div className="bg-gray-900 rounded-lg aspect-video flex items-center justify-center mb-4 relative">
               {/* NEW: AdSense Video Ad Container */}
               <ins
+                key={`ad-${isOpen}`}
                 ref={adContainerRef}
                 className="adsbygoogle"
-                style={{ display: 'block', minHeight: '250px' }}
+                style={{ display: 'block', width: '100%', minHeight: '250px' }}
                 data-ad-client={process.env.REACT_APP_ADSENSE_PUBLISHER_ID}
                 data-ad-slot={process.env.REACT_APP_ADSENSE_VIDEO_SLOT}
                 data-ad-format="auto"
@@ -371,14 +382,9 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
         {adError && (
           <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <p className="text-sm text-yellow-800">
-              Ad failed to load. You can download your file now.
+              Ad failed to load.
             </p>
-            <button
-              onClick={handleDownload}
-              className="mt-2 text-primary-600 hover:text-primary-700 font-medium"
-            >
-              Download File
-            </button>
+            
           </div>
         )}
       </div>
@@ -387,3 +393,4 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
 };
 
 export default VideoAdModal;
+
