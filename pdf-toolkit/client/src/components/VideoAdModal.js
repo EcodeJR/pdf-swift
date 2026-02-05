@@ -176,7 +176,7 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
   const [adError, setAdError] = useState(false);
   const adCompleteCalled = useRef(false);
   const downloadStarted = useRef(false);
-  
+
   // NEW: Add refs to prevent duplicate ad loading
   const adContainerRef = useRef(null);
   const adInitialized = useRef(false);
@@ -234,45 +234,59 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
     }
   }, [downloadUrl, fileName, onClose]);
 
-  // NEW: Separate useEffect for AdSense initialization
+  // NEW: Separate useEffect for AdSense initialization with retry logic
   useEffect(() => {
     // Only run when modal is open, ad not completed, not already initialized, and element exists
     if (!isOpen || adCompleted || adInitialized.current || !adContainerRef.current) {
       return;
     }
 
-    // FIXED: Capture the current ref value at the start of the effect
-    const adElement = adContainerRef.current;
-    
+    let retryCount = 0;
+    const maxRetries = 10;
+    const retryInterval = 500;
+
     const loadAdSense = () => {
+      const adElement = adContainerRef.current;
+
       try {
-        // Double-check element still exists and has width
+        // Check if element exists and has width (is visible/rendered)
         if (!adElement || adElement.offsetWidth === 0) {
-          console.log('AdSense: Container not ready, skipping...');
+          if (retryCount < maxRetries) {
+            retryCount++;
+            console.log(`AdSense: Container not ready (retry ${retryCount}/${maxRetries}), retrying...`);
+            setTimeout(loadAdSense, retryInterval);
+          } else {
+            console.log('AdSense: Max retries reached, container still not ready');
+            setAdError(true);
+          }
           return;
         }
 
         // Check if the ad container already has an ad loaded
         const isAlreadyLoaded = adElement.getAttribute('data-adsbygoogle-status');
-        
+
         if (isAlreadyLoaded) {
-          console.log('AdSense: Ad already loaded, skipping...');
+          console.log('AdSense: Ad already loaded or loading, skipping...');
+          adInitialized.current = true;
           return;
         }
-        
+
         if (window.adsbygoogle) {
           (window.adsbygoogle = window.adsbygoogle || []).push({});
           adInitialized.current = true;
-          console.log('AdSense video ad initialized');
+          console.log('AdSense video ad initialized successfully');
+        } else {
+          console.log('AdSense: adsbygoogle not found on window');
+          setAdError(true);
         }
       } catch (error) {
-        console.error('AdSense error:', error);
+        console.error('AdSense error in VideoAdModal:', error);
         setAdError(true);
       }
     };
 
-    // Longer delay to ensure modal is fully visible
-    const adTimer = setTimeout(loadAdSense, 300);
+    // Initial attempt with a small delay for modal animation
+    const adTimer = setTimeout(loadAdSense, 500);
 
     return () => {
       clearTimeout(adTimer);
@@ -336,7 +350,7 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
                 data-ad-format="auto"
                 data-full-width-responsive="true"
               />
-              
+
               {/* Fallback loading indicator (shown if ad doesn't load) */}
               <div className="text-white text-center absolute">
                 <div className="animate-pulse mb-4">
@@ -384,7 +398,7 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
             <p className="text-sm text-yellow-800">
               Ad failed to load.
             </p>
-            
+
           </div>
         )}
       </div>
