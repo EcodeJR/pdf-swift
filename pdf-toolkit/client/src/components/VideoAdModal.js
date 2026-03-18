@@ -6,6 +6,7 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
   const [countdown, setCountdown] = useState(adDuration);
   const [adError, setAdError] = useState(false);
   const [adPlaying, setAdPlaying] = useState(false);
+  const [adSessionStarted, setAdSessionStarted] = useState(false);
 
   const adCompleteCalled = useRef(false);
   const downloadStarted = useRef(false);
@@ -34,6 +35,7 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
       setAdCompleted(false);
       setAdPlaying(false);
       setAdError(false);
+      setAdSessionStarted(false);
       setCountdown(adDuration);
     }
   }, [isOpen, adDuration]);
@@ -85,132 +87,121 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
     }
   }, [onAdComplete, handleDownload]);
 
-  // IMA SDK Initialization
-  useEffect(() => {
-    if (!isOpen || adCompleted || imaInitialized.current || !adContainerRef.current || !videoElementRef.current) {
+  const handleImaAdError = React.useCallback((adErrorEvent) => {
+    const error = adErrorEvent?.getError ? adErrorEvent.getError() : adErrorEvent;
+    console.warn('Ad error:', error);
+    if (adsManagerRef.current) {
+      adsManagerRef.current.destroy();
+      adsManagerRef.current = null;
+    }
+    setAdError(true);
+    setAdPlaying(false);
+  }, []);
+
+  const handleAdsManagerLoaded = React.useCallback((adsManagerLoadedEvent) => {
+    const adsRenderingSettings = new window.google.ima.AdsRenderingSettings();
+    adsRenderingSettings.restoreCustomPlaybackStateOnAdBreakComplete = true;
+
+    adsManagerRef.current = adsManagerLoadedEvent.getAdsManager(
+      videoElementRef.current,
+      adsRenderingSettings
+    );
+
+    adsManagerRef.current.addEventListener(
+      window.google.ima.AdErrorEvent.Type.AD_ERROR,
+      handleImaAdError
+    );
+    adsManagerRef.current.addEventListener(
+      window.google.ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED,
+      () => setAdPlaying(true)
+    );
+    adsManagerRef.current.addEventListener(
+      window.google.ima.AdEvent.Type.CONTENT_RESUME_REQUESTED,
+      completeAd
+    );
+    adsManagerRef.current.addEventListener(
+      window.google.ima.AdEvent.Type.ALL_ADS_COMPLETED,
+      completeAd
+    );
+    adsManagerRef.current.addEventListener(
+      window.google.ima.AdEvent.Type.SKIPPED,
+      completeAd
+    );
+    adsManagerRef.current.addEventListener(
+      window.google.ima.AdEvent.Type.STARTED,
+      () => setAdPlaying(true)
+    );
+
+    try {
+      adsManagerRef.current.init(
+        adContainerRef.current.offsetWidth,
+        adContainerRef.current.offsetHeight,
+        window.google.ima.ViewMode.NORMAL
+      );
+      adsManagerRef.current.start();
+    } catch (error) {
+      console.error('AdsManager start failed:', error);
+      setAdError(true);
+      setAdPlaying(false);
+    }
+  }, [completeAd, handleImaAdError]);
+
+  const startAdPlayback = React.useCallback(() => {
+    if (imaInitialized.current || adCompleted) {
       return;
     }
 
-    if (!window.google || !window.google.ima) {
-      console.warn('IMA SDK not loaded, falling back to timer');
+    setAdSessionStarted(true);
+
+    if (!window.google || !window.google.ima || !adContainerRef.current || !videoElementRef.current) {
+      console.warn('IMA SDK not loaded or ad container not ready, using fallback timer');
       setAdError(true);
       return;
     }
 
-    const initIMA = () => {
-      try {
-        imaInitialized.current = true;
+    try {
+      imaInitialized.current = true;
 
-        // Create the ad display container
-        adDisplayContainerRef.current = new window.google.ima.AdDisplayContainer(
-          adContainerRef.current,
-          videoElementRef.current
-        );
-
-        // Initialize the container - MUST happen in a user action or with a video element
-        adDisplayContainerRef.current.initialize();
-
-        // Create ads loader
-        adsLoaderRef.current = new window.google.ima.AdsLoader(adDisplayContainerRef.current);
-
-        // Listen for ads loaded and error events
-        adsLoaderRef.current.addEventListener(
-          window.google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED,
-          onAdsManagerLoaded,
-          false
-        );
-        adsLoaderRef.current.addEventListener(
-          window.google.ima.AdErrorEvent.Type.AD_ERROR,
-          onAdError,
-          false
-        );
-
-        // Request ads
-        const adsRequest = new window.google.ima.AdsRequest();
-
-        // Construct VAST tag URL
-        const publisherId = process.env.REACT_APP_ADSENSE_PUBLISHER_ID || 'ca-pub-5120020675639002';
-        const adSlot = process.env.REACT_APP_ADSENSE_VIDEO_SLOT || '7793351143';
-
-        // Standard AdSense for Video Tag
-        adsRequest.adTagUrl = `https://googleads.g.doubleclick.net/pagead/ads?client=${publisherId}&slotname=${adSlot}&ad_type=video&description_url=${encodeURIComponent(window.location.href)}&videoad_start_delay=0`;
-
-        // Specify the linear ad slot dimensions
-        adsRequest.linearAdSlotWidth = adContainerRef.current.offsetWidth;
-        adsRequest.linearAdSlotHeight = adContainerRef.current.offsetHeight;
-        adsRequest.nonLinearAdSlotWidth = adContainerRef.current.offsetWidth;
-        adsRequest.nonLinearAdSlotHeight = adContainerRef.current.offsetHeight;
-
-        adsLoaderRef.current.requestAds(adsRequest);
-      } catch (err) {
-        console.error('IMA initialization failed:', err);
-        setAdError(true);
-      }
-    };
-
-    const onAdsManagerLoaded = (adsManagerLoadedEvent) => {
-      const adsRenderingSettings = new window.google.ima.AdsRenderingSettings();
-      adsRenderingSettings.restoreCustomPlaybackStateOnAdBreakComplete = true;
-
-      adsManagerRef.current = adsManagerLoadedEvent.getAdsManager(
-        videoElementRef.current,
-        adsRenderingSettings
+      // AdDisplayContainer.initialize should be called from user interaction.
+      adDisplayContainerRef.current = new window.google.ima.AdDisplayContainer(
+        adContainerRef.current,
+        videoElementRef.current
       );
+      adDisplayContainerRef.current.initialize();
 
-      adsManagerRef.current.addEventListener(
+      adsLoaderRef.current = new window.google.ima.AdsLoader(adDisplayContainerRef.current);
+      adsLoaderRef.current.addEventListener(
+        window.google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED,
+        handleAdsManagerLoaded,
+        false
+      );
+      adsLoaderRef.current.addEventListener(
         window.google.ima.AdErrorEvent.Type.AD_ERROR,
-        onAdError
-      );
-      adsManagerRef.current.addEventListener(
-        window.google.ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED,
-        () => setAdPlaying(true)
-      );
-      adsManagerRef.current.addEventListener(
-        window.google.ima.AdEvent.Type.CONTENT_RESUME_REQUESTED,
-        completeAd
-      );
-      adsManagerRef.current.addEventListener(
-        window.google.ima.AdEvent.Type.ALL_ADS_COMPLETED,
-        completeAd
-      );
-      adsManagerRef.current.addEventListener(
-        window.google.ima.AdEvent.Type.SKIPPED,
-        completeAd
-      );
-      adsManagerRef.current.addEventListener(
-        window.google.ima.AdEvent.Type.STARTED,
-        () => setAdPlaying(true)
+        handleImaAdError,
+        false
       );
 
-      try {
-        adsManagerRef.current.init(
-          adContainerRef.current.offsetWidth,
-          adContainerRef.current.offsetHeight,
-          window.google.ima.ViewMode.NORMAL
-        );
-        adsManagerRef.current.start();
-      } catch (adError) {
-        console.error('AdsManager start failed:', adError);
-        setAdError(true);
-      }
-    };
+      const adsRequest = new window.google.ima.AdsRequest();
+      const publisherId = process.env.REACT_APP_ADSENSE_PUBLISHER_ID || 'ca-pub-5120020675639002';
+      const adSlot = process.env.REACT_APP_ADSENSE_VIDEO_SLOT || '7793351143';
 
-    const onAdError = (adErrorEvent) => {
-      console.warn('Ad error:', adErrorEvent.getError());
-      if (adsManagerRef.current) {
-        adsManagerRef.current.destroy();
-      }
+      adsRequest.adTagUrl = `https://googleads.g.doubleclick.net/pagead/ads?client=${publisherId}&slotname=${adSlot}&ad_type=video&description_url=${encodeURIComponent(window.location.href)}&videoad_start_delay=0`;
+      adsRequest.linearAdSlotWidth = adContainerRef.current.offsetWidth;
+      adsRequest.linearAdSlotHeight = adContainerRef.current.offsetHeight;
+      adsRequest.nonLinearAdSlotWidth = adContainerRef.current.offsetWidth;
+      adsRequest.nonLinearAdSlotHeight = adContainerRef.current.offsetHeight;
+
+      adsLoaderRef.current.requestAds(adsRequest);
+    } catch (error) {
+      console.error('IMA initialization failed:', error);
       setAdError(true);
-    };
-
-    // Small delay to ensure DOM is ready
-    const timer = setTimeout(initIMA, 1000);
-    return () => clearTimeout(timer);
-  }, [isOpen, adCompleted, completeAd]);
+      setAdPlaying(false);
+    }
+  }, [adCompleted, handleAdsManagerLoaded, handleImaAdError]);
 
   // Fallback Countdown Timer (Runs if ad is not playing or IMA fails)
   useEffect(() => {
-    if (isOpen && !adCompleted && !adPlaying) {
+    if (isOpen && !adCompleted && !adPlaying && (adSessionStarted || adError)) {
       timerRef.current = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
@@ -226,7 +217,7 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
         if (timerRef.current) clearInterval(timerRef.current);
       };
     }
-  }, [isOpen, adCompleted, adPlaying, completeAd]);
+  }, [isOpen, adCompleted, adPlaying, adSessionStarted, adError, completeAd]);
 
   if (!isOpen) return null;
 
@@ -260,15 +251,30 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
               {/* Fallback & Loading UI (shown if ad hasn't started yet) */}
               {!adPlaying && (
                 <div className="text-white text-center z-0">
-                  <div className="animate-pulse mb-4">
-                    <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full mx-auto"></div>
-                  </div>
-                  <p className="text-lg font-medium">
-                    {adError ? "Preparing your download..." : "Loading advertisement..."}
-                  </p>
-                  <p className="text-sm text-gray-300 mt-2">
-                    Your download will be ready in {countdown} seconds
-                  </p>
+                  {!adSessionStarted ? (
+                    <>
+                      <p className="text-lg font-medium mb-4">Start ad to unlock your download</p>
+                      <button
+                        type="button"
+                        onClick={startAdPlayback}
+                        className="px-5 py-2.5 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+                      >
+                        Play Ad
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="animate-pulse mb-4">
+                        <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full mx-auto"></div>
+                      </div>
+                      <p className="text-lg font-medium">
+                        {adError ? 'Preparing your download...' : 'Loading advertisement...'}
+                      </p>
+                      <p className="text-sm text-gray-300 mt-2">
+                        Your download will be ready in {countdown} seconds
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
             </div>
