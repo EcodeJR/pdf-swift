@@ -1,18 +1,45 @@
-import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FiCheck } from 'react-icons/fi';
 import { GridPattern } from '../components/GridPattern';
+import { paymentAPI } from '../services/api';
 
 const Success = () => {
   const { refreshUser } = useAuth();
+  const [searchParams] = useSearchParams();
+  const [verifying, setVerifying] = useState(true);
+  const [verificationError, setVerificationError] = useState('');
+
+  const queryString = searchParams.toString();
 
   useEffect(() => {
-    // Refresh user data to get updated premium status
-    setTimeout(() => {
-      refreshUser();
-    }, 2000);
-  }, [refreshUser]);
+    const verifyPayment = async () => {
+      const params = new URLSearchParams(queryString);
+      const transactionId = params.get('transaction_id');
+      const txRef = params.get('tx_ref');
+      const status = String(params.get('status') || '').toLowerCase();
+
+      try {
+        if (status && !['successful', 'completed', 'succeeded'].includes(status)) {
+          setVerificationError('Payment was not completed. Please try again.');
+          return;
+        }
+
+        if (transactionId) {
+          await paymentAPI.verifyTransaction(transactionId, txRef);
+        }
+
+        await refreshUser();
+      } catch (error) {
+        setVerificationError(error.response?.data?.message || 'We could not verify your payment yet. Please refresh this page in a moment.');
+      } finally {
+        setVerifying(false);
+      }
+    };
+
+    verifyPayment();
+  }, [refreshUser, queryString]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
@@ -34,9 +61,13 @@ const Success = () => {
           </h1>
 
           {/* Description */}
-          <p className="text-gray-600 mb-8">
-            Your subscription is now active. Thank you for upgrading!
-          </p>
+          {verifying ? (
+            <p className="text-gray-600 mb-8">Verifying your payment, please wait...</p>
+          ) : verificationError ? (
+            <p className="text-red-600 mb-8">{verificationError}</p>
+          ) : (
+            <p className="text-gray-600 mb-8">Your subscription is now active. Thank you for upgrading!</p>
+          )}
 
           {/* Benefits List */}
           <div className="bg-blue-50 rounded-lg p-6 mb-8 text-left">
@@ -75,10 +106,10 @@ const Success = () => {
 
           {/* CTA Button */}
           <Link
-            to="/dashboard"
+            to={verificationError ? '/pricing' : '/dashboard'}
             className="inline-block w-full py-3 px-6 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition"
           >
-            Go to Dashboard
+            {verificationError ? 'Back to Pricing' : 'Go to Dashboard'}
           </Link>
 
           <p className="text-sm text-gray-500 mt-4">

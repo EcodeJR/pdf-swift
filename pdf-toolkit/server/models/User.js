@@ -21,7 +21,16 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  stripeCustomerId: {
+  flutterwaveCustomerId: {
+    type: String,
+    default: null
+  },
+  paymentProvider: {
+    type: String,
+    enum: ['flutterwave', 'none'],
+    default: 'none'
+  },
+  lastPaymentTxRef: {
     type: String,
     default: null
   },
@@ -31,7 +40,7 @@ const userSchema = new mongoose.Schema({
   },
   subscriptionStatus: {
     type: String,
-    enum: ['active', 'cancelled', 'expired', 'none'],
+    enum: ['active', 'cancelled', 'expired', 'pending', 'none'],
     default: 'none'
   },
   conversionsThisHour: {

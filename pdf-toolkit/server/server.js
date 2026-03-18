@@ -112,15 +112,12 @@ app.use(fingerprintMiddleware);
 // Check if device is blocked
 app.use(blockCheckMiddleware);
 
-// Body parser middleware (except for webhook route)
-app.use((req, res, next) => {
-  if (req.originalUrl === '/api/payment/webhook') {
-    next();
-  } else {
-    express.json()(req, res, next);
+// Body parser middleware
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf?.toString();
   }
-});
-
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // Create uploads directory if it doesn't exist

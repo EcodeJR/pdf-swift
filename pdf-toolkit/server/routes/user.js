@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const axios = require('axios');
 const { protect } = require('../middleware/auth');
 const User = require('../models/User');
 const Conversion = require('../models/Conversion');
@@ -251,10 +252,43 @@ router.delete('/account', protect, async (req, res) => {
 
     const user = await User.findById(req.user._id);
 
+    const FLW_BASE_URL = process.env.FLW_BASE_URL || 'https://api.flutterwave.com/v3';
+    const flutterwaveHeaders = {
+      Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`,
+      'Content-Type': 'application/json'
+    };
+
     // Verify password before deletion
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Incorrect password' });
+    }
+
+    // Best-effort subscription cancellation before deleting account data.
+    if (user.subscriptionId && user.paymentProvider === 'flutterwave' && process.env.FLW_SECRET_KEY) {
+      const cancelAttempts = [
+        () => axios.put(
+          `${FLW_BASE_URL}/subscriptions/${user.subscriptionId}/cancel`,
+          {},
+          { headers: flutterwaveHeaders, timeout: 15000 }
+        ),
+        () => axios.post(
+          `${FLW_BASE_URL}/subscriptions/${user.subscriptionId}/cancel`,
+          {},
+          { headers: flutterwaveHeaders, timeout: 15000 }
+        )
+      ];
+
+      for (const attempt of cancelAttempts) {
+        try {
+          const response = await attempt();
+          if (response.data?.status === 'success') {
+            break;
+          }
+        } catch (cancelError) {
+          console.warn('Failed to cancel Flutterwave subscription during account deletion:', cancelError.message);
+        }
+      }
     }
 
     // Delete all user files
@@ -262,8 +296,6 @@ router.delete('/account', protect, async (req, res) => {
 
     // Delete user
     await User.findByIdAndDelete(user._id);
-
-    // TODO: Cancel Stripe subscription if active
 
     res.json({ message: 'Account deleted successfully' });
   } catch (error) {

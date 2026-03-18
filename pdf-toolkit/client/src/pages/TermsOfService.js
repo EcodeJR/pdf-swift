@@ -83,7 +83,7 @@ const TermsOfService = () => {
                                 <ul className="list-disc pl-6 mb-4 text-gray-700">
                                     <li>Billing is monthly or annually based on your selection</li>
                                     <li>Automatic renewal unless cancelled</li>
-                                    <li>Payments processed securely via Stripe</li>
+                                    <li>Payments processed securely via Flutterwave</li>
                                     <li>We reserve the right to change prices with 30 days notice</li>
                                     <li>Refunds available within 7 days of purchase</li>
                                 </ul>

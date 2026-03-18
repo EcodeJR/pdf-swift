@@ -26,7 +26,7 @@ const Pricing = () => {
     setLoading(true);
     try {
       const { url } = await paymentAPI.createCheckout();
-      window.location.href = url; // Redirect to Stripe checkout
+      window.location.href = url; // Redirect to Flutterwave checkout
     } catch (error) {
       toast.error('Failed to create checkout session');
     } finally {
@@ -65,7 +65,7 @@ const Pricing = () => {
     },
     {
       q: 'Is my payment secure?',
-      a: 'Absolutely! All payments are processed securely through Stripe. We never store your credit card information.',
+      a: 'Absolutely! All payments are processed securely through Flutterwave. We never store your card information.',
     },
     {
       q: 'What happens after I cancel?',

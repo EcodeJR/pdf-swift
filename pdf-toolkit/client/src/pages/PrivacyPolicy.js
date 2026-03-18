@@ -92,7 +92,7 @@ const PrivacyPolicy = () => {
                                     <li>AES-256 encryption for data at rest</li>
                                     <li>Automatic file deletion after 1 hour</li>
                                     <li>Regular security audits</li>
-                                    <li>Secure payment processing via Stripe</li>
+                                    <li>Secure payment processing via Flutterwave</li>
                                 </ul>
                             </section>
 
@@ -112,7 +112,7 @@ const PrivacyPolicy = () => {
                                     We use the following third-party services:
                                 </p>
                                 <ul className="list-disc pl-6 mb-4 text-gray-700">
-                                    <li><strong>Stripe:</strong> For payment processing</li>
+                                    <li><strong>Flutterwave:</strong> For payment processing</li>
                                     <li><strong>MongoDB Atlas:</strong> For database hosting</li>
                                     <li><strong>Analytics:</strong> For usage statistics (anonymized)</li>
                                 </ul>

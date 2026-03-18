@@ -83,6 +83,14 @@ export const paymentAPI = {
     return response.data;
   },
 
+  verifyTransaction: async (transactionId, txRef = null) => {
+    const response = await api.post('/payment/verify-transaction', {
+      transactionId,
+      txRef,
+    });
+    return response.data;
+  },
+
   cancelSubscription: async () => {
     const response = await api.post('/payment/cancel-subscription');
     return response.data;

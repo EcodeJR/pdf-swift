@@ -22,7 +22,7 @@ A comprehensive PDF conversion and editing web application with dual storage opt
   - Cloud Storage: Files stored for 30 days (requires login)
 - **Authentication**: JWT-based with email/password
 - **Rate Limiting**: 3 conversions/hour for free users
-- **Premium Subscription**: $5/month via Stripe
+- **Premium Subscription**: $5/month via Flutterwave
   - Unlimited conversions
   - 50MB file size limit (vs 10MB free)
   - No ads
@@ -32,7 +32,7 @@ A comprehensive PDF conversion and editing web application with dual storage opt
 
 ### Monetization
 - **Google AdSense**: Banner and video ads for free users
-- **Stripe Payments**: Monthly subscriptions
+- **Flutterwave Payments**: Monthly subscriptions
 - **Email Notifications**: SendGrid integration
 
 ## 📋 Tech Stack
@@ -45,7 +45,7 @@ A comprehensive PDF conversion and editing web application with dual storage opt
 - react-dropzone
 - react-toastify
 - react-icons
-- Stripe React Elements
+- Flutterwave hosted checkout
 
 ### Backend
 - Node.js + Express.js
@@ -55,7 +55,7 @@ A comprehensive PDF conversion and editing web application with dual storage opt
 - GridFS (cloud storage)
 - PDF Libraries: pdf-lib, pdf-parse, pdfkit, docx, xlsx
 - Image Processing: sharp
-- Stripe SDK
+- Axios (Flutterwave API integration)
 - SendGrid
 - node-cron (cleanup jobs)
 
@@ -64,7 +64,7 @@ A comprehensive PDF conversion and editing web application with dual storage opt
 ### Prerequisites
 - Node.js 16+ and npm
 - MongoDB Atlas account
-- Stripe account
+- Flutterwave account
 - SendGrid account (optional for emails)
 - Google AdSense account (optional for ads)
 
@@ -87,8 +87,12 @@ PORT=5000
 NODE_ENV=development
 MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_super_secret_key_min_32_chars
-STRIPE_SECRET_KEY=sk_test_your_stripe_key
-STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+FLW_PUBLIC_KEY=FLWPUBK_TEST_your_public_key
+FLW_SECRET_KEY=FLWSECK_TEST_your_secret_key
+FLW_ENCRYPTION_KEY=FLWSECK_TEST_your_encryption_key
+FLW_WEBHOOK_HASH=your_flutterwave_webhook_hash
+PREMIUM_AMOUNT=5
+PREMIUM_CURRENCY=USD
 SENDGRID_API_KEY=SG.your_sendgrid_key
 SENDGRID_FROM_EMAIL=noreply@yourdomain.com
 CLIENT_URL=http://localhost:3000
@@ -107,7 +111,7 @@ npm install
 Create `.env` file in `/client`:
 ```env
 REACT_APP_API_URL=http://localhost:5000/api
-REACT_APP_STRIPE_PUBLIC_KEY=pk_test_your_stripe_key
+REACT_APP_FLW_PUBLIC_KEY=FLWPUBK_TEST_your_public_key
 REACT_APP_ADSENSE_PUBLISHER_ID=ca-pub-your_adsense_id
 REACT_APP_ADSENSE_HEADER_SLOT=your_slot_id
 REACT_APP_ADSENSE_VIDEO_SLOT=your_slot_id
@@ -121,16 +125,12 @@ REACT_APP_ADSENSE_VIDEO_SLOT=your_slot_id
 4. Whitelist IP: 0.0.0.0/0 (for development)
 5. Get connection string and add to `MONGO_URI`
 
-### 5. Stripe Setup
+### 5. Flutterwave Setup
 
-1. Create account at stripe.com
-2. Get API keys from Dashboard → Developers → API keys
-3. For webhooks:
-   ```bash
-   # Install Stripe CLI
-   stripe listen --forward-to localhost:5000/api/payment/webhook
-   ```
-4. Copy webhook signing secret to `.env`
+1. Create account at flutterwave.com
+2. Get test/live keys from your Flutterwave dashboard
+3. Set a webhook URL to: `http://localhost:5000/api/payment/webhook` (or your production API URL)
+4. Copy your webhook hash/signing value to `FLW_WEBHOOK_HASH` in `.env`
 
 ### 6. SendGrid Setup (Optional)
 
@@ -160,11 +160,8 @@ Application will open at http://localhost:3000
 ### Test Accounts
 Create a test account by registering at http://localhost:3000/register
 
-### Test Stripe Payment
-Use Stripe test card:
-- Card: 4242 4242 4242 4242
-- Expiry: Any future date
-- CVC: Any 3 digits
+### Test Flutterwave Payment
+Use Flutterwave test mode credentials from your Flutterwave dashboard and complete checkout via the hosted payment page.
 
 ### Test Conversions
 1. Upload a PDF file (max 10MB for free users)
@@ -205,10 +202,10 @@ Add environment variables in Vercel dashboard.
 - Already hosted
 - Update `MONGO_URI` with production connection string
 
-### Stripe Webhooks
+### Flutterwave Webhooks
 1. Add production webhook endpoint: `https://your-api.com/api/payment/webhook`
-2. Select events: `checkout.session.completed`, `customer.subscription.*`
-3. Update `STRIPE_WEBHOOK_SECRET`
+2. Enable charge/subscription webhook events in Flutterwave dashboard
+3. Update `FLW_WEBHOOK_HASH`
 
 ### Custom Domain (Optional)
 1. Purchase domain
@@ -285,10 +282,10 @@ pdf-toolkit/
 - Verify file type is accepted
 - Check rate limits
 
-### Stripe Webhook Not Working
-- Verify webhook secret
+### Flutterwave Webhook Not Working
+- Verify `FLW_WEBHOOK_HASH`
 - Check endpoint URL
-- Test with Stripe CLI
+- Confirm your server can read raw webhook body for signature validation
 
 ### Frontend Not Loading
 - Clear browser cache
@@ -346,7 +343,7 @@ Built with ❤️ using:
 - React.js
 - Node.js
 - MongoDB
-- Stripe
+- Flutterwave
 - SendGrid
 - Tailwind CSS
 - pdf-lib and other open-source libraries
@@ -357,7 +354,7 @@ Built with ❤️ using:
 
 - [ ] Install Node.js 16+
 - [ ] Create MongoDB Atlas database
-- [ ] Get Stripe API keys
+- [ ] Get Flutterwave API keys
 - [ ] Get SendGrid API key (optional)
 - [ ] Clone repository
 - [ ] Install backend dependencies
@@ -367,7 +364,7 @@ Built with ❤️ using:
 - [ ] Start frontend server
 - [ ] Test registration and login
 - [ ] Test file conversion
-- [ ] Test Stripe payment (test mode)
+- [ ] Test Flutterwave payment (test mode)
 - [ ] Deploy to production
 - [ ] Configure custom domain
 - [ ] Setup production webhooks

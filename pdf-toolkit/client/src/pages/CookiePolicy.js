@@ -128,7 +128,7 @@ const CookiePolicy = () => {
                                     We use cookies from trusted third-party services:
                                 </p>
                                 <ul className="list-disc pl-6 mb-4 text-gray-700">
-                                    <li><strong>Stripe:</strong> For secure payment processing</li>
+                                    <li><strong>Flutterwave:</strong> For secure payment processing</li>
                                     <li><strong>Analytics Services:</strong> To understand site usage (anonymized data only)</li>
                                 </ul>
                                 <p className="text-gray-700">
