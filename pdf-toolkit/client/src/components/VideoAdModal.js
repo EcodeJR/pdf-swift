@@ -245,12 +245,12 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
               {/* IMA Ad Container */}
               <div
                 ref={adContainerRef}
-                className="absolute inset-0 z-10"
+                className={`absolute inset-0 z-10 ${adSessionStarted ? 'pointer-events-auto' : 'pointer-events-none'}`}
               />
 
               {/* Fallback & Loading UI (shown if ad hasn't started yet) */}
               {!adPlaying && (
-                <div className="text-white text-center z-0">
+                <div className="relative z-20 text-white text-center pointer-events-auto">
                   {!adSessionStarted ? (
                     <>
                       <p className="text-lg font-medium mb-4">Start ad to unlock your download</p>
