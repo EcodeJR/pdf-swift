@@ -1,6 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FiDownload } from 'react-icons/fi';
 
+const IMA_TEST_AD_TAG_URL =
+  'https://pubads.g.doubleclick.net/gampad/ads?sz=640x480&iu=/124319096/external/single_ad_samples&ciu_szs=300x250&cust_params=deployment%3Ddevsite%26sample_ct%3Dlinear&gdfp_req=1&env=vp&output=vast&unviewed_position_start=1&correlator=';
+
+const getAdTagUrl = () => {
+  const customTagUrl = process.env.REACT_APP_IMA_AD_TAG_URL;
+  if (customTagUrl) {
+    return customTagUrl;
+  }
+
+  const isLocalhost =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1';
+
+  // Localhost is commonly not eligible for production AdSense video responses.
+  // Use Google's official IMA test tag unless an explicit ad tag override is configured.
+  if (isLocalhost) {
+    return `${IMA_TEST_AD_TAG_URL}${Date.now()}`;
+  }
+
+  const publisherId = process.env.REACT_APP_ADSENSE_PUBLISHER_ID || 'ca-pub-5120020675639002';
+  const adSlot = process.env.REACT_APP_ADSENSE_VIDEO_SLOT || '7793351143';
+  const descriptionUrl = process.env.REACT_APP_ADS_DESCRIPTION_URL || window.location.href;
+
+  return `https://googleads.g.doubleclick.net/pagead/ads?client=${publisherId}&slotname=${adSlot}&ad_type=video&description_url=${encodeURIComponent(descriptionUrl)}&videoad_start_delay=0&env=vp&output=vast&correlator=${Date.now()}`;
+};
+
 const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, adDuration = 15 }) => {
   const [adCompleted, setAdCompleted] = useState(false);
   const [countdown, setCountdown] = useState(adDuration);
@@ -89,7 +115,12 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
 
   const handleImaAdError = React.useCallback((adErrorEvent) => {
     const error = adErrorEvent?.getError ? adErrorEvent.getError() : adErrorEvent;
-    console.warn('Ad error:', error);
+    const errorData = error?.data || {};
+    console.warn('Ad error:', {
+      code: errorData.errorCode,
+      message: errorData.errorMessage || error?.message,
+      innerError: errorData.innerError,
+    });
     if (adsManagerRef.current) {
       adsManagerRef.current.destroy();
       adsManagerRef.current = null;
@@ -182,10 +213,7 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
       );
 
       const adsRequest = new window.google.ima.AdsRequest();
-      const publisherId = process.env.REACT_APP_ADSENSE_PUBLISHER_ID || 'ca-pub-5120020675639002';
-      const adSlot = process.env.REACT_APP_ADSENSE_VIDEO_SLOT || '7793351143';
-
-      adsRequest.adTagUrl = `https://googleads.g.doubleclick.net/pagead/ads?client=${publisherId}&slotname=${adSlot}&ad_type=video&description_url=${encodeURIComponent(window.location.href)}&videoad_start_delay=0`;
+      adsRequest.adTagUrl = getAdTagUrl();
       adsRequest.linearAdSlotWidth = adContainerRef.current.offsetWidth;
       adsRequest.linearAdSlotHeight = adContainerRef.current.offsetHeight;
       adsRequest.nonLinearAdSlotWidth = adContainerRef.current.offsetWidth;
