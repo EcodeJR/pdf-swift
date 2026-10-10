@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FiDownload } from 'react-icons/fi';
+import api from '../services/api';
 
 const IMA_TEST_AD_TAG_URL =
   'https://pubads.g.doubleclick.net/gampad/ads?sz=640x480&iu=/124319096/external/single_ad_samples&ciu_szs=300x250&cust_params=deployment%3Ddevsite%26sample_ct%3Dlinear&gdfp_req=1&env=vp&output=vast&unviewed_position_start=1&correlator=';
@@ -73,10 +74,28 @@ const VideoAdModal = ({ isOpen, onClose, onAdComplete, downloadUrl, fileName, ad
       downloadStarted.current = true;
       try {
         console.log('Downloading from:', downloadUrl);
-        const response = await fetch(downloadUrl);
-        if (!response.ok) throw new Error('Download failed');
+        const requestUrl = downloadUrl.startsWith('http')
+          ? downloadUrl
+          : downloadUrl.replace(/^\/api(?=\/)/, '');
 
-        const blob = await response.blob();
+        const response = await api.get(requestUrl, {
+          responseType: 'arraybuffer',
+          headers: {
+            Accept: 'application/pdf'
+          }
+        });
+
+        const contentType = String(response?.headers?.['content-type'] || '').toLowerCase();
+        const bytes = new Uint8Array(response.data || []);
+        const pdfSignature = bytes.length >= 5
+          ? String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3], bytes[4])
+          : '';
+
+        if (!contentType.includes('application/pdf') && pdfSignature !== '%PDF-') {
+          throw new Error('Server response is not a valid PDF');
+        }
+
+        const blob = new Blob([response.data], { type: 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;

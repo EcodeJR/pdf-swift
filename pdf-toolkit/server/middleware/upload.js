@@ -85,7 +85,7 @@ const getFileSize = (req) => {
 // Local upload middleware
 const localUpload = multer({
   storage: localStorage,
-  limits: { fileSize: 52428800 }, // Max 50MB, will check user-specific limit in route
+  limits: { fileSize: 52428800, fieldSize: 52428800 }, // Max 50MB, will check user-specific limit in route. Increased fieldSize for large canvasData.
   fileFilter: fileFilter
 });
 
@@ -96,7 +96,7 @@ const initCloudUpload = () => {
   const storage = createGridFsStorage();
   cloudUpload = multer({
     storage: storage,
-    limits: { fileSize: 52428800 },
+    limits: { fileSize: 52428800, fieldSize: 52428800 },
     fileFilter: fileFilter
   });
 };

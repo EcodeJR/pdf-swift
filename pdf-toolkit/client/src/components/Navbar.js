@@ -136,7 +136,7 @@ const Navbar = () => {
               <div className="flex items-center space-x-4">
                 <Link
                   to="/login"
-                  className="text-[var(--text-secondary)] hover:text-[var(--primary)] font-medium transition-colors"
+                  className="text-[var(--text-primary)] hover:text-[var(--primary)] font-medium transition-colors"
                 >
                   Login
                 </Link>

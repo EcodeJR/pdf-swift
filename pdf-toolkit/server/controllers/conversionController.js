@@ -9,8 +9,9 @@ const sharp = require('sharp');
 const PDFDocument2 = require('pdfkit');
 const muhammara = require('muhammara');
 // const { convert } = require('pdf-poppler'); // [REMOVED] Breaks on Linux
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const execAsync = require('util').promisify(exec);
+const execFileAsync = require('util').promisify(execFile);
 // LibreOffice path for Windows
 // LibreOffice path for Windows/Linux
 const LIBREOFFICE_PATH = process.env.LIBREOFFICE_PATH ||
@@ -22,6 +23,32 @@ const LIBREOFFICE_PATH = process.env.LIBREOFFICE_PATH ||
 const POPPLER_BIN_PATH = process.env.POPPLER_PATH ||
   (process.platform === 'win32' ? 'pdftoppm' : 'pdftoppm');
 // pdftoppm is usually in the PATH, but users can override via POPPLER_PATH
+
+const resolvePdftoppmPath = () => {
+  const configuredPath = process.env.POPPLER_PATH;
+  const executableName = process.platform === 'win32' ? 'pdftoppm.exe' : 'pdftoppm';
+
+  if (!configuredPath) {
+    return POPPLER_BIN_PATH;
+  }
+
+  const normalizedPath = configuredPath.trim().replace(/^"|"$/g, '');
+
+  try {
+    if (fsSync.existsSync(normalizedPath) && fsSync.statSync(normalizedPath).isDirectory()) {
+      return path.join(normalizedPath, executableName);
+    }
+  } catch (error) {
+    console.warn('Unable to inspect POPPLER_PATH:', error.message);
+  }
+
+  return normalizedPath;
+};
+
+const getPdftoppmExecForShell = () => {
+  const resolvedPath = resolvePdftoppmPath();
+  return resolvedPath.includes(' ') ? `"${resolvedPath}"` : resolvedPath;
+};
 
 const Conversion = require('../models/Conversion');
 const User = require('../models/User');
@@ -52,6 +79,568 @@ const calculateProtectionFlag = (permissions) => {
   if (permissions.highResPrint) flag |= 2048;
 
   return flag;
+};
+
+const parseJsonField = (value, fallback) => {
+  if (typeof value === 'undefined' || value === null || value === '') {
+    return fallback;
+  }
+
+  if (typeof value === 'string') {
+    return JSON.parse(value);
+  }
+
+  return value;
+};
+
+const buildPythonCandidates = () => {
+  const candidates = [];
+
+  if (process.env.PYTHON_EXECUTABLE) {
+    candidates.push({ command: process.env.PYTHON_EXECUTABLE, args: [] });
+  }
+
+  if (process.platform === 'win32') {
+    candidates.push({ command: 'py', args: ['-3'] });
+    candidates.push({ command: 'python', args: [] });
+  } else {
+    candidates.push({ command: 'python3', args: [] });
+    candidates.push({ command: 'python', args: [] });
+  }
+
+  return candidates;
+};
+
+const runPythonScript = async (scriptPath, scriptArgs) => {
+  const attempts = [];
+
+  for (const candidate of buildPythonCandidates()) {
+    try {
+      await execFileAsync(candidate.command, [...candidate.args, scriptPath, ...scriptArgs]);
+      return;
+    } catch (error) {
+      attempts.push(`${candidate.command}${candidate.args.length ? ` ${candidate.args.join(' ')}` : ''}: ${error.message}`);
+    }
+  }
+
+  const error = new Error(`No usable Python executable found. Tried: ${attempts.join(' | ')}`);
+  error.attempts = attempts;
+  throw error;
+};
+
+const toRgbColor = (color, defaultColor = rgb(0, 0, 0)) => {
+  if (!color) return defaultColor;
+
+  if (typeof color === 'object' && typeof color.r === 'number' && typeof color.g === 'number' && typeof color.b === 'number') {
+    return rgb(color.r, color.g, color.b);
+  }
+
+  return defaultColor;
+};
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const isPdfTextObject = (item) => item && ['i-text', 'textbox', 'text'].includes(item.type);
+
+const standardFontFor = (fontFamily, fontWeight, fontStyle) => {
+  const family = String(fontFamily || '').toLowerCase();
+  const bold = String(fontWeight || '').toLowerCase().includes('bold') || Number(fontWeight) >= 600;
+  const italic = String(fontStyle || '').toLowerCase().includes('italic') || String(fontStyle || '').toLowerCase().includes('oblique');
+
+  if (family.includes('courier')) {
+    if (bold && italic) return StandardFonts.CourierBoldOblique;
+    if (bold) return StandardFonts.CourierBold;
+    if (italic) return StandardFonts.CourierOblique;
+    return StandardFonts.Courier;
+  }
+
+  if (family.includes('times')) {
+    if (bold && italic) return StandardFonts.TimesRomanBoldItalic;
+    if (bold) return StandardFonts.TimesRomanBold;
+    if (italic) return StandardFonts.TimesRomanItalic;
+    return StandardFonts.TimesRoman;
+  }
+
+  if (bold && italic) return StandardFonts.HelveticaBoldOblique;
+  if (bold) return StandardFonts.HelveticaBold;
+  if (italic) return StandardFonts.HelveticaOblique;
+  return StandardFonts.Helvetica;
+};
+
+const extractDataUrl = (value) => {
+  if (!value || typeof value !== 'string') return null;
+  const match = value.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
+  if (!match) return null;
+  return {
+    mimeType: match[1].toLowerCase(),
+    bytes: Buffer.from(match[2], 'base64')
+  };
+};
+
+const embedImageFromDataUrl = async (pdfDoc, dataUrl) => {
+  const source = extractDataUrl(dataUrl);
+  if (!source) return null;
+
+  if (source.mimeType.includes('png')) {
+    return pdfDoc.embedPng(source.bytes);
+  }
+
+  if (source.mimeType.includes('jpeg') || source.mimeType.includes('jpg')) {
+    return pdfDoc.embedJpg(source.bytes);
+  }
+
+  return null;
+};
+
+const drawCanvasPages = async (pdfDoc, canvasData) => {
+  const pages = Array.isArray(canvasData?.pages) ? canvasData.pages : [];
+
+  for (const pageData of pages) {
+    // renderScale is the ratio canvas-px / pdf-pt. Divide canvas-space coords by it
+    // to get PDF user-space coordinates for images and new shapes.
+    const renderScale = Number(pageData.renderScale || 1) || 1;
+    const pageWidth   = Math.round(Number(pageData.pageWidth  || 612) / renderScale);
+    const pageHeight  = Math.round(Number(pageData.pageHeight || 792) / renderScale);
+    const page = pdfDoc.addPage([pageWidth, pageHeight]);
+    const items = Array.isArray(pageData.objects) ? pageData.objects : [];
+
+    // Preserve the rendered source page so scanned/image PDFs stay visible.
+    const backgroundImage = await embedImageFromDataUrl(pdfDoc, pageData.backgroundDataUrl);
+    if (backgroundImage) {
+      page.drawImage(backgroundImage, {
+        x: 0,
+        y: 0,
+        width: pageWidth,
+        height: pageHeight,
+        opacity: 1
+      });
+    }
+
+    for (const item of items) {
+      if (!item || item.deleted || item.visible === false) {
+        continue;
+      }
+
+      if (isPdfTextObject(item) && typeof item.text === 'string') {
+        const isOriginalPdfText = item.source === 'pdf';
+        const currentText = String(item.text || '');
+        const originalText = String(item.originalText || '');
+
+        // If this text is from the original PDF and hasn't been changed, skip drawing
+        // We rely on the rasterized background image to preserve unmodified vectors.
+        if (isOriginalPdfText && currentText === originalText && !item.deleted && !item.dirty) {
+          continue;
+        }
+
+        // Embed font and compute size/position
+        const font = await pdfDoc.embedFont(standardFontFor(item.fontFamily, item.fontWeight, item.fontStyle));
+        const size = Number(item.pdfFontSize ?? item.originalFontSize ?? item.fontSize ?? 16);
+        const textColor = toRgbColor(item.fill, rgb(0.07, 0.09, 0.15));
+        const safeText = currentText.replace(/[^\x20-\xFF]/g, '');
+
+        if (!safeText.trim()) continue;
+
+        // If this is modified text from the PDF, erase the original area
+        if (isOriginalPdfText) {
+          const scaleX = Number(item.scaleX ?? 1) || 1;
+          const scaleY = Number(item.scaleY ?? 1) || 1;
+
+          let eraseWidth, eraseHeight, eraseX, eraseBaseY;
+          if (item.pdfBaselineY != null && item.pdfLeft != null) {
+            const pdfW    = Number(item.pdfWidth || item.pdfFontSize * 6) * scaleX;
+            eraseWidth  = Math.max(1, Math.ceil(pdfW * 1.4 + 20));
+            eraseHeight = Math.max(1, Math.ceil(size * scaleY * 1.8 + 8));
+            eraseX      = Number(item.pdfLeft) - 4;
+            eraseBaseY  = Number(item.pdfBaselineY);
+          } else {
+            const baseW = Number((item.originalWidth  || item.width  || 0) * scaleX);
+            const baseH = Number((item.originalFontSize ?? item.originalHeight ?? item.height ?? 16) * scaleY);
+            eraseWidth  = Math.max(1, Math.ceil(baseW * 1.4 + 20));
+            eraseHeight = Math.max(1, Math.ceil(baseH * 1.8 + 8));
+            const leftAnchor = Number(item.originalLeft ?? item.left ?? 0);
+            const topAnchor  = Number(item.originalTop  ?? item.top  ?? 0);
+            eraseX     = leftAnchor - 4;
+            eraseBaseY = pageHeight - topAnchor;
+          }
+
+          const eraseY = eraseBaseY - eraseHeight * 0.8;
+          try {
+            page.drawRectangle({ x: eraseX, y: clamp(eraseY, 0, pageHeight), width: eraseWidth, height: eraseHeight, color: rgb(1,1,1), opacity: 1 });
+            console.log(`[DEBUG] drawCanvasPages: Erased PDF background area for original text -> rect=(x=${eraseX},y=${eraseY},w=${eraseWidth},h=${eraseHeight})`);
+          } catch (e) {
+            console.warn('[DEBUG] drawCanvasPages: erase rect failed', e?.message || e);
+          }
+          if (item.deleted) {
+            continue;
+          }
+        }
+
+        // Draw replacement or new text using PDF-space coords where available
+        let xCoord, yCoord;
+        if (item.pdfBaselineY != null && item.pdfLeft != null) {
+          xCoord = Number(item.pdfLeft);
+          yCoord = Number(item.pdfBaselineY);
+        } else {
+          const canvasTop  = Number(item.originalTop  ?? item.top  ?? 0);
+          const canvasLeft = Number(item.originalLeft ?? item.left ?? 0);
+          xCoord = canvasLeft;
+          yCoord = pageHeight - canvasTop - size;
+        }
+
+        // Word wrapping for textbox objects
+        const wrapWidth = item.type === 'textbox' ? (item.pdfWidth || (item.originalWidth / (item.renderScale || 1)) || (item.width / (item.renderScale || 1))) : Infinity;
+        const words = safeText.split(/([ \n])/);
+        const lines = [];
+        let currentLine = '';
+        
+        for (const word of words) {
+          if (word === '\n') {
+            lines.push(currentLine);
+            currentLine = '';
+            continue;
+          }
+          const testLine = currentLine + word;
+          const testWidth = font.widthOfTextAtSize(testLine, size);
+          
+          if (testWidth > wrapWidth && currentLine.trim() !== '') {
+            lines.push(currentLine);
+            currentLine = word.startsWith(' ') ? word.slice(1) : word;
+          } else {
+            currentLine = testLine;
+          }
+        }
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+
+        const lineHeight = size * Number(item.lineHeight || 1.16);
+        lines.forEach((line, idx) => {
+          page.drawText(line, { 
+            x: xCoord, 
+            y: clamp(yCoord - (idx * lineHeight), 0, pageHeight), 
+            size, 
+            font, 
+            color: textColor, 
+            rotate: item.angle ? degrees(Number(item.angle)) : undefined, 
+            opacity: Number(item.opacity ?? 1) 
+          });
+        });
+        continue;
+      }
+
+      if (item.type === 'image') {
+        const source = extractDataUrl(item.src || item.sourceUrl);
+        if (!source) continue;
+
+        const image = source.mimeType === 'png'
+          ? await pdfDoc.embedPng(source.bytes)
+          : await pdfDoc.embedJpg(source.bytes);
+
+        // Normalize from canvas-space to PDF user-space
+        const imgLeft   = Number(item.left   || 0) / renderScale;
+        const imgTop    = Number(item.top    || 0) / renderScale;
+        const imgWidth  = Number(item.width  || image.width  || 0) / renderScale;
+        const imgHeight = Number(item.height || image.height || 0) / renderScale;
+
+        page.drawImage(image, {
+          x: imgLeft,
+          y: clamp(pageHeight - imgTop - imgHeight, 0, pageHeight),
+          width:  imgWidth,
+          height: imgHeight,
+          opacity: Number(item.opacity ?? 1),
+          rotate: item.angle ? degrees(Number(item.angle)) : undefined
+        });
+        continue;
+      }
+
+      if (item.type === 'rect') {
+        const rs2   = renderScale;
+        const width  = Number(item.width  || 0) * Number(item.scaleX || 1) / rs2;
+        const height = Number(item.height || 0) * Number(item.scaleY || 1) / rs2;
+        const rLeft  = Number(item.left   || 0) / rs2;
+        const rTop   = Number(item.top    || 0) / rs2;
+        page.drawRectangle({
+          x: rLeft,
+          y: clamp(pageHeight - rTop - height, 0, pageHeight),
+          width,
+          height,
+          color: toRgbColor(item.fill, rgb(0, 0, 0)),
+          opacity: Number(item.opacity ?? 1),
+          borderColor: item.stroke ? toRgbColor(item.stroke, rgb(0, 0, 0)) : undefined,
+          borderWidth: Number(item.strokeWidth ?? 0) / rs2,
+          rotate: item.angle ? degrees(Number(item.angle)) : undefined
+        });
+        continue;
+      }
+
+      if (item.type === 'circle') {
+        const rs2    = renderScale;
+        const radius = Number(item.radius || 0) * Number(item.scaleX || 1) / rs2;
+        const cLeft  = Number(item.left || 0) / rs2;
+        const cTop   = Number(item.top  || 0) / rs2;
+        page.drawEllipse({
+          x: cLeft + radius,
+          y: clamp(pageHeight - cTop - radius, 0, pageHeight),
+          xScale: radius,
+          yScale: radius,
+          color: toRgbColor(item.fill, rgb(0, 0, 0)),
+          opacity: Number(item.opacity ?? 1),
+          borderColor: item.stroke ? toRgbColor(item.stroke, rgb(0, 0, 0)) : undefined,
+          borderWidth: Number(item.strokeWidth ?? 0) / rs2
+        });
+        continue;
+      }
+
+      if (item.type === 'line') {
+        const rs2 = renderScale;
+        page.drawLine({
+          start: { x: (Number(item.left || 0) + Number(item.x1 || 0)) / rs2, y: clamp(pageHeight - (Number(item.top || 0) + Number(item.y1 || 0)) / rs2, 0, pageHeight) },
+          end:   { x: (Number(item.left || 0) + Number(item.x2 || 0)) / rs2, y: clamp(pageHeight - (Number(item.top || 0) + Number(item.y2 || 0)) / rs2, 0, pageHeight) },
+          thickness: Number(item.strokeWidth ?? 1) / rs2,
+          color: toRgbColor(item.stroke, rgb(0.07, 0.09, 0.15)),
+          opacity: Number(item.opacity ?? 1)
+        });
+        continue;
+      }
+
+      if (item.type === 'path' && Array.isArray(item.path)) {
+        page.drawSvgPath(JSON.stringify(item.path));
+      }
+    }
+  }
+};
+
+const drawCanvasPageOverlay = async (page, pageData, pdfDoc) => {
+  if (!page || !pageData) return;
+
+  const pageHeight = page.getSize().height;
+  const items = Array.isArray(pageData.objects) ? pageData.objects : [];
+
+  // Strategy: Only modify items that were explicitly changed.
+  // For PDF-sourced text:
+  //   - If unchanged (text === originalText): SKIP (leave original vectors intact)
+  //   - If changed: ERASE original area (white rect) + DRAW replacement text
+  //   - If deleted: ERASE original area (white rect) + SKIP drawing
+  // For new items (source !== 'pdf'): just draw them normally
+  // This preserves all original layout, fonts, colors, shapes for unmodified content.
+
+  for (const item of items) {
+    if (!item || item.visible === false) {
+      continue;
+    }
+
+    try {
+      if (isPdfTextObject(item) && typeof item.text === 'string') {
+        const originalText = typeof item.originalText === 'string' ? item.originalText : '';
+        const currentText = item.text || '';
+        const isOriginalPdfText = item.source === 'pdf';
+        const hasChangedText = currentText !== originalText;
+        const isModified = isOriginalPdfText && (hasChangedText || item.deleted || item.dirty);
+
+        // Unchanged PDF text: skip entirely (preserve original vectors)
+        if (isOriginalPdfText && !hasChangedText && !item.deleted && !item.dirty) {
+          console.log(`[DEBUG] drawCanvasPageOverlay: Skipping unchanged PDF text: "${currentText.substring(0, 30)}"`);
+          continue;
+        }
+
+        // For modified PDF text: erase the original area
+        if (isModified && isOriginalPdfText) {
+          // Use PDF-space coordinates for stable erase position across render scales
+          const eraseFontSize = Number(item.pdfFontSize ?? item.originalFontSize ?? item.fontSize ?? 16);
+          const scaleX  = Number(item.scaleX ?? 1) || 1;
+          const scaleY  = Number(item.scaleY ?? 1) || 1;
+
+          // Compute erase bounds in PDF space
+          let eraseWidth, eraseHeight, eraseX, eraseBaseY;
+          if (item.pdfBaselineY != null && item.pdfLeft != null) {
+            // Use stored PDF-space geometry for precision
+            const pdfW = Number(item.pdfWidth || item.pdfFontSize * 6) * scaleX;
+            eraseWidth  = Math.max(1, Math.ceil(pdfW * 1.4 + 20));
+            eraseHeight = Math.max(1, Math.ceil(eraseFontSize * scaleY * 1.8 + 8));
+            eraseX      = Number(item.pdfLeft) - 4;
+            eraseBaseY  = Number(item.pdfBaselineY); // baseline in PDF space (Y=0 at bottom)
+          } else {
+            // Fallback: canvas-space calculation
+            const baseWidth  = Number((item.originalWidth  || item.width  || 0) * scaleX);
+            const baseHeight = Number((item.originalFontSize ?? item.originalHeight ?? item.height ?? 16) * scaleY);
+            eraseWidth  = Math.max(1, Math.ceil(baseWidth  * 1.4 + 20));
+            eraseHeight = Math.max(1, Math.ceil(baseHeight * 1.8 + 8));
+            const leftAnchor = Number(item.originalLeft ?? item.left ?? 0);
+            const topAnchor  = Number(item.originalTop  ?? item.top  ?? 0);
+            eraseX     = leftAnchor - 4;
+            eraseBaseY = pageHeight - topAnchor; // approximate baseline in PDF space
+          }
+
+          // If text is rotated, add extra padding
+          const angleDeg = Number(item.angle ?? 0) || 0;
+          if (Math.abs(angleDeg) > 0.1) { eraseWidth += 16; eraseHeight += 10; }
+
+          // Erase rect bottom = eraseBaseY - ascent padding; top = eraseBaseY + descent padding
+          const eraseY = eraseBaseY - eraseHeight * 0.8; // sits mostly above baseline
+
+          try {
+            page.drawRectangle({
+              x: eraseX,
+              y: clamp(eraseY, 0, pageHeight),
+              width: eraseWidth,
+              height: eraseHeight,
+              color: rgb(1, 1, 1),
+              opacity: 1
+            });
+            console.log(`[DEBUG] drawCanvasPageOverlay: Erased for "${originalText.substring(0, 30)}" -> rect=(x=${eraseX}, y=${eraseY}, w=${eraseWidth}, h=${eraseHeight})`);
+          } catch (e) {
+            console.warn('[DEBUG] drawCanvasPageOverlay: erase rect draw failed', e?.message || e);
+          }
+
+          // If deleted, skip drawing (just leave the white erase area)
+          if (item.deleted) {
+            console.log(`[DEBUG] drawCanvasPageOverlay: Item marked deleted, skipping draw`);
+            continue;
+          }
+        }
+
+        // For new text OR modified PDF text: draw the text
+        const font = await pdfDoc.embedFont(standardFontFor(item.fontFamily, item.fontWeight, item.fontStyle));
+        console.log(`[DEBUG] drawCanvasPageOverlay: Drawing text: "${currentText.substring(0, 50)}" (source=${item.source})`);
+        const size = Number(item.pdfFontSize ?? item.originalFontSize ?? item.fontSize ?? 16);
+        const textColor = toRgbColor(item.fill, rgb(0.07, 0.09, 0.15));
+        const safeText = currentText.replace(/[^\x20-\xFF]/g, '');
+
+        if (!safeText.trim()) {
+          console.log(`[DEBUG] drawCanvasPageOverlay: Text was empty after sanitization, skipping`);
+          continue;
+        }
+
+        // Prefer PDF-space coordinates (pdfBaselineY is Y=0 at bottom — exactly what pdf-lib needs).
+        // Fall back to canvas-space Y-flip for user-added items that have no pdfBaselineY.
+        let xCoord, yCoord;
+        if (item.pdfBaselineY != null && item.pdfLeft != null) {
+          // Original PDF text: use stored PDF-space baseline directly
+          xCoord = Number(item.pdfLeft);
+          yCoord = Number(item.pdfBaselineY);
+        } else {
+          // New/user text: convert canvas-space top to PDF-space baseline
+          const canvasTop = Number(item.originalTop ?? item.top ?? 0);
+          const canvasLeft = Number(item.originalLeft ?? item.left ?? 0);
+          xCoord = canvasLeft;
+          yCoord = pageHeight - canvasTop - size;
+        }
+
+        // Word wrapping for textbox objects
+        const wrapWidth = item.type === 'textbox' ? (item.pdfWidth || (item.originalWidth / (item.renderScale || 1)) || (item.width / (item.renderScale || 1))) : Infinity;
+        const words = safeText.split(/([ \n])/);
+        const lines = [];
+        let currentLine = '';
+        
+        for (const word of words) {
+          if (word === '\n') {
+            lines.push(currentLine);
+            currentLine = '';
+            continue;
+          }
+          const testLine = currentLine + word;
+          const testWidth = font.widthOfTextAtSize(testLine, size);
+          
+          if (testWidth > wrapWidth && currentLine.trim() !== '') {
+            lines.push(currentLine);
+            currentLine = word.startsWith(' ') ? word.slice(1) : word;
+          } else {
+            currentLine = testLine;
+          }
+        }
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+
+        const lineHeight = size * Number(item.lineHeight || 1.16);
+        lines.forEach((line, idx) => {
+          page.drawText(line, {
+            x: xCoord,
+            y: clamp(yCoord - (idx * lineHeight), 0, pageHeight),
+            size,
+            font,
+            color: textColor,
+            rotate: item.angle ? degrees(Number(item.angle)) : undefined,
+            opacity: Number(item.opacity ?? 1)
+          });
+        });
+        console.log(`[DEBUG] drawCanvasPageOverlay: Drew text at (x=${xCoord}, y=${clamp(yCoord, 0, pageHeight)}), size=${size}`);
+        continue;
+      }
+    } catch (itemError) {
+      console.error(`[DEBUG] drawCanvasPageOverlay: Error processing item:`, itemError);
+      throw itemError;
+    }
+
+    if (item.type === 'image') {
+      const source = extractDataUrl(item.src || item.sourceUrl);
+      if (!source) continue;
+
+      const image = source.mimeType === 'png'
+        ? await pdfDoc.embedPng(source.bytes)
+        : await pdfDoc.embedJpg(source.bytes);
+
+      const width = Number(item.width || image.width || 0);
+      const height = Number(item.height || image.height || 0);
+
+      page.drawImage(image, {
+        x: Number(item.left || 0),
+        y: clamp(pageHeight - Number(item.top || 0) - height, 0, pageHeight),
+        width,
+        height,
+        opacity: Number(item.opacity ?? 1),
+        rotate: item.angle ? degrees(Number(item.angle)) : undefined
+      });
+      continue;
+    }
+
+    if (item.type === 'rect') {
+      const width = Number(item.width || 0) * Number(item.scaleX || 1);
+      const height = Number(item.height || 0) * Number(item.scaleY || 1);
+      page.drawRectangle({
+        x: Number(item.left || 0),
+        y: clamp(pageHeight - Number(item.top || 0) - height, 0, pageHeight),
+        width,
+        height,
+        color: toRgbColor(item.fill, rgb(0, 0, 0)),
+        opacity: Number(item.opacity ?? 1),
+        borderColor: item.stroke ? toRgbColor(item.stroke, rgb(0, 0, 0)) : undefined,
+        borderWidth: Number(item.strokeWidth ?? 0),
+        rotate: item.angle ? degrees(Number(item.angle)) : undefined
+      });
+      continue;
+    }
+
+    if (item.type === 'circle') {
+      const radius = Number(item.radius || 0) * Number(item.scaleX || 1);
+      page.drawEllipse({
+        x: Number(item.left || 0) + radius,
+        y: clamp(pageHeight - Number(item.top || 0) - radius, 0, pageHeight),
+        xScale: radius,
+        yScale: radius,
+        color: toRgbColor(item.fill, rgb(0, 0, 0)),
+        opacity: Number(item.opacity ?? 1),
+        borderColor: item.stroke ? toRgbColor(item.stroke, rgb(0, 0, 0)) : undefined,
+        borderWidth: Number(item.strokeWidth ?? 0)
+      });
+      continue;
+    }
+
+    if (item.type === 'line') {
+      page.drawLine({
+        start: { x: Number(item.left || 0) + Number(item.x1 || 0), y: clamp(pageHeight - Number(item.top || 0) - Number(item.y1 || 0), 0, pageHeight) },
+        end: { x: Number(item.left || 0) + Number(item.x2 || 0), y: clamp(pageHeight - Number(item.top || 0) - Number(item.y2 || 0), 0, pageHeight) },
+        thickness: Number(item.strokeWidth ?? 1),
+        color: toRgbColor(item.stroke, rgb(0.07, 0.09, 0.15)),
+        opacity: Number(item.opacity ?? 1)
+      });
+      continue;
+    }
+
+    if (item.type === 'path' && Array.isArray(item.path)) {
+      page.drawSvgPath(JSON.stringify(item.path));
+    }
+  }
 };
 
 // Helper function to track conversion
@@ -119,14 +708,13 @@ exports.pdfToWord = async (req, res) => {
     // Convert using Python pdf2docx
     try {
       const pythonScript = path.join(__dirname, '../utils/pdfToWord.py');
-      // Use python3 explicitly as installed in Docker
-      const command = `python3 "${pythonScript}" "${req.file.path}" "${outputPath}"`;
-      await execAsync(command);
+      await runPythonScript(pythonScript, [req.file.path, outputPath]);
     } catch (error) {
       console.error('Python PDF to Word conversion error:', error.message);
+      if (error.attempts) console.error('Python attempts:', error.attempts.join(' | '));
       // Log stderr if available for debugging
       if (error.stderr) console.error('Python stderr:', error.stderr);
-      throw new Error('Conversion failed. Please allow some time or try a simpler PDF.');
+      throw new Error('Conversion failed. Please install Python or set PYTHON_EXECUTABLE, then try again.');
     }
 
     // Check if output exists
@@ -260,9 +848,7 @@ exports.compressPdf = async (req, res) => {
         await fs.mkdir(outputDir);
 
         // 1. Convert PDF to Images using pdftoppm (Linux native & Windows compatible)
-        const pdftoppmExec = process.platform === 'win32' && process.env.POPPLER_PATH
-          ? `"${path.join(process.env.POPPLER_PATH, 'pdftoppm.exe')}"`
-          : POPPLER_BIN_PATH;
+        const pdftoppmExec = getPdftoppmExecForShell();
 
         const command = `${pdftoppmExec} -jpeg -r 150 "${inputPath}" "${path.join(outputDir, 'page')}"`;
         await execAsync(command);
@@ -679,9 +1265,7 @@ exports.pdfToJpg = async (req, res) => {
     // Convert PDF to images using pdftoppm (Linux native & Windows compatible)
     try {
       // On Windows, if POPPLER_PATH is provided, use the full path to pdftoppm.exe
-      const pdftoppmExec = process.platform === 'win32' && process.env.POPPLER_PATH
-        ? `"${path.join(process.env.POPPLER_PATH, 'pdftoppm.exe')}"`
-        : POPPLER_BIN_PATH;
+      const pdftoppmExec = getPdftoppmExecForShell();
 
       const command = `${pdftoppmExec} -jpeg -r 300 "${pdfPath}" "${path.join(outputDir, baseFileName)}"`;
       await execAsync(command);
@@ -948,7 +1532,7 @@ exports.excelToPdf = async (req, res) => {
   }
 };
 
-// PDF Editor - Add text, images, and annotations
+// PDF Editor - Canvas-based content reconstruction
 exports.editPdf = async (req, res) => {
   const startTime = Date.now();
 
@@ -958,8 +1542,7 @@ exports.editPdf = async (req, res) => {
     }
 
 
-    // Get editing instructions from request body
-    // Parse JSON strings if they come as strings (from FormData)
+    let canvasData = null;
     let texts = [];
     let images = [];
     let annotations = [];
@@ -967,287 +1550,176 @@ exports.editPdf = async (req, res) => {
     let rotate = null;
 
     try {
-      // Log raw request body for debugging
-      console.log('Raw request body keys:', Object.keys(req.body));
-      console.log('Raw texts:', req.body.texts);
-      console.log('Raw images:', req.body.images);
-
-      texts = typeof req.body.texts === 'string' ? JSON.parse(req.body.texts) : (req.body.texts || []);
-      images = typeof req.body.images === 'string' ? JSON.parse(req.body.images) : (req.body.images || []);
-      annotations = typeof req.body.annotations === 'string' ? JSON.parse(req.body.annotations) : (req.body.annotations || []);
-      watermark = typeof req.body.watermark === 'string' ? JSON.parse(req.body.watermark) : req.body.watermark;
-      rotate = typeof req.body.rotate === 'string' ? JSON.parse(req.body.rotate) : req.body.rotate;
+      canvasData = parseJsonField(req.body.canvasData, null);
+      texts = parseJsonField(req.body.texts, []);
+      images = parseJsonField(req.body.images, []);
+      annotations = parseJsonField(req.body.annotations, []);
+      watermark = parseJsonField(req.body.watermark, null);
+      rotate = parseJsonField(req.body.rotate, null);
     } catch (parseError) {
       console.error('Error parsing edit data:', parseError);
       return res.status(400).json({ message: 'Invalid edit data format' });
     }
 
-    console.log('Parsed edit data:', {
-      textsCount: texts.length,
-      imagesCount: images.length,
-      annotationsCount: annotations.length,
-      hasWatermark: !!watermark
-    });
-
-    // Load the PDF
     const pdfBytes = await fs.readFile(req.file.path);
     const pdfDoc = await PDFDocument.load(pdfBytes);
-    const pages = pdfDoc.getPages();
+    let editedPdfBytes;
 
-    // Add text annotations
-    for (const textItem of texts) {
-      // Skip if text is undefined or empty
-      if (!textItem.text || typeof textItem.text !== 'string') {
-        console.warn('Skipping text item with invalid text:', textItem);
-        continue;
+    console.log(`[DEBUG] editPdf: canvasData structure:`, {
+      hasPages: !!canvasData?.pages,
+      pagesLength: canvasData?.pages?.length,
+      firstPageObjects: canvasData?.pages?.[0]?.objects?.length
+    });
+
+    if (canvasData?.pages?.length) {
+      console.log(`[DEBUG] editPdf: Using canvas-based editing for ${canvasData.pages.length} pages`);
+      const rebuiltPdfDoc = await PDFDocument.create();
+      const copiedPages = await rebuiltPdfDoc.copyPages(pdfDoc, pdfDoc.getPageIndices());
+      copiedPages.forEach((page) => rebuiltPdfDoc.addPage(page));
+
+      const rebuiltPages = rebuiltPdfDoc.getPages();
+      for (let index = 0; index < canvasData.pages.length; index += 1) {
+        const pageData = canvasData.pages[index];
+        const explicitPageNumber = Number(pageData?.pageNumber);
+        const targetPageIndex = Number.isFinite(explicitPageNumber) && explicitPageNumber > 0
+          ? explicitPageNumber - 1
+          : index;
+        const targetPage = rebuiltPages[targetPageIndex];
+        console.log(`[DEBUG] editPdf: Processing pageDataIndex=${index}, targetPageIndex=${targetPageIndex}, hasPageData=${!!pageData}, hasTargetPage=${!!targetPage}`);
+        if (!targetPage || !pageData) continue;
+        try {
+          await drawCanvasPageOverlay(targetPage, pageData, rebuiltPdfDoc);
+          console.log(`[DEBUG] editPdf: Page ${targetPageIndex} overlay complete`);
+        } catch (overlayError) {
+          console.error(`[DEBUG] editPdf: Page ${targetPageIndex} overlay failed:`, overlayError);
+          throw overlayError;
+        }
       }
 
-      const page = pages[textItem.page || 0];
-      const { height } = page.getSize(); // Get actual page height
-      const fontSize = textItem.size || 12;
+      console.log(`[DEBUG] editPdf: All overlays complete, saving PDF...`);
+      editedPdfBytes = await rebuiltPdfDoc.save();
+      console.log(`[DEBUG] editPdf: PDF saved, size=${editedPdfBytes.length}`);
 
-      // Select font based on bold/italic
-      let fontName = StandardFonts.Helvetica;
-      if (textItem.bold && textItem.italic) {
-        fontName = StandardFonts.HelveticaBoldOblique;
-      } else if (textItem.bold) {
-        fontName = StandardFonts.HelveticaBold;
-      } else if (textItem.italic) {
-        fontName = StandardFonts.HelveticaOblique;
+      try {
+        await PDFDocument.load(editedPdfBytes);
+        console.log(`[DEBUG] editPdf: PDF validation passed`);
+      } catch (validationError) {
+        console.error(`[DEBUG] editPdf: PDF validation failed:`, validationError);
+        throw new Error(`Generated PDF failed validation: ${validationError.message}`);
       }
-      const font = await pdfDoc.embedFont(fontName);
+    } else {
+      const pages = pdfDoc.getPages();
 
-      // Parse color - handle both object {r, g, b} and string formats
-      let textColor;
-      if (textItem.color && typeof textItem.color === 'object') {
-        const { r = 0, g = 0, b = 0 } = textItem.color;
-        textColor = rgb(r, g, b);
-      } else {
-        textColor = rgb(0, 0, 0); // Default black
-      }
+      for (const textItem of texts) {
+        if (!textItem?.text || typeof textItem.text !== 'string') continue;
+        const page = pages[textItem.page || 0];
+        if (!page) continue;
+        const { height } = page.getSize();
+        const fontSize = Number(textItem.size || 12);
+        const font = await pdfDoc.embedFont(standardFontFor(textItem.fontFamily, textItem.bold ? 'bold' : 'normal', textItem.italic ? 'italic' : 'normal'));
+        const cleanText = textItem.text.replace(/[^\x20-\xFF]/g, '');
+        if (!cleanText.length) continue;
 
-      // Remove emojis and special characters that WinAnsi can't encode
-      // WinAnsi only supports characters in the range 0x20-0xFF
-      const cleanText = textItem.text.replace(/[^\x20-\xFF]/g, '');
-
-      if (cleanText.length === 0) {
-        console.warn('Text contains only unsupported characters (emojis/special chars), skipping');
-        continue;
-      }
-
-      if (cleanText !== textItem.text) {
-        console.warn('Removed unsupported characters from text:', {
-          original: textItem.text,
-          cleaned: cleanText
+        page.drawText(cleanText, {
+          x: Number(textItem.x || 0),
+          y: height - Number(textItem.y || 0) - fontSize,
+          size: fontSize,
+          color: toRgbColor(textItem.color, rgb(0, 0, 0)),
+          font
         });
       }
 
-      // Convert top-left coordinates (frontend) to bottom-left (pdf-lib)
-      // Subtract y from height to flip coordinate system
-      page.drawText(cleanText, {
-        x: textItem.x,
-        y: height - textItem.y - fontSize, // Adjust for font size as drawText uses baseline
-        size: fontSize,
-        color: textColor,
-        font: font
-      });
-    }
-
-    // Add image annotations
-    for (const imgItem of images) {
-      console.log('Processing image:', { page: imgItem.page, x: imgItem.x, y: imgItem.y, hasData: !!imgItem.imageData });
-
-      const page = pages[imgItem.page || 0];
-      const { height } = page.getSize();
-
-      // If image is base64 or URL, embed it
-      if (imgItem.imageData) {
-        let image;
-        try {
-          // Robustly handle data URL prefix
-          const matches = imgItem.imageData.match(/^data:image\/([a-zA-Z+]+);base64,(.+)$/);
-
-          if (matches && matches.length === 3) {
-            const imageType = matches[1].toLowerCase();
-            const base64Data = matches[2];
-            console.log(`Embedding ${imageType} image...`);
-            const imageBytes = Buffer.from(base64Data, 'base64');
-
-            if (imageType === 'png') {
-              image = await pdfDoc.embedPng(imageBytes);
-            } else if (imageType === 'jpeg' || imageType === 'jpg') {
-              image = await pdfDoc.embedJpg(imageBytes);
-            } else {
-              console.warn(`Unsupported image type for embedding: ${imageType}`);
-            }
-          } else {
-            // Fallback: try to detect type from data itself
-            console.warn('Invalid data URL format, attempting fallback detection');
-
-            // Try to extract base64 data even if format is wrong
-            let base64Data = imgItem.imageData;
-            if (base64Data.includes('base64,')) {
-              base64Data = base64Data.split('base64,')[1];
-            }
-
-            try {
-              const imageBytes = Buffer.from(base64Data, 'base64');
-
-              // Try PNG first (most common)
-              try {
-                image = await pdfDoc.embedPng(imageBytes);
-                console.log('Successfully embedded as PNG (fallback)');
-              } catch (pngError) {
-                // If PNG fails, try JPG
-                try {
-                  image = await pdfDoc.embedJpg(imageBytes);
-                  console.log('Successfully embedded as JPG (fallback)');
-                } catch (jpgError) {
-                  console.error('Failed to embed as both PNG and JPG:', jpgError.message);
-                }
-              }
-            } catch (decodeError) {
-              console.error('Failed to decode base64 image data:', decodeError.message);
-            }
-          }
-
-          if (image) {
-            console.log(`Drawing image at x:${imgItem.x}, y:${height - imgItem.y - (imgItem.height || 100)}`);
-            page.drawImage(image, {
-              x: imgItem.x,
-              y: height - imgItem.y - (imgItem.height || 100), // Adjust for image height (draws from bottom-left)
-              width: imgItem.width || 100,
-              height: imgItem.height || 100
-            });
-            console.log('Image drawn successfully');
-          } else {
-            console.error('Failed to create image object');
-          }
-        } catch (imgError) {
-          console.error('Error embedding image:', imgError);
-        }
-      } else {
-        console.warn('Image item has no imageData');
-      }
-    }
-
-    // Add shape annotations (rectangles, highlights)
-    for (const annotation of annotations) {
-      const page = pages[annotation.page || 0];
-      const { height } = page.getSize();
-
-      // Parse color using rgb() function
-      let annotationColor;
-      if (annotation.color && typeof annotation.color === 'object') {
-        const { r = 1, g = 1, b = 0 } = annotation.color;
-        annotationColor = rgb(r, g, b);
-      } else {
-        annotationColor = rgb(1, 1, 0); // Default yellow
+      for (const imgItem of images) {
+        const page = pages[imgItem.page || 0];
+        if (!page || !imgItem.imageData) continue;
+        const source = extractDataUrl(imgItem.imageData);
+        if (!source) continue;
+        const image = source.mimeType === 'png' ? await pdfDoc.embedPng(source.bytes) : await pdfDoc.embedJpg(source.bytes);
+        page.drawImage(image, {
+          x: Number(imgItem.x || 0),
+          y: page.getSize().height - Number(imgItem.y || 0) - Number(imgItem.height || 100),
+          width: Number(imgItem.width || 100),
+          height: Number(imgItem.height || 100)
+        });
       }
 
-      // Parse border color using rgb() function
-      let borderColor;
-      if (annotation.borderColor && typeof annotation.borderColor === 'object') {
-        const { r = 0, g = 0, b = 0 } = annotation.borderColor;
-        borderColor = rgb(r, g, b);
-      } else {
-        borderColor = undefined; // No border
-      }
+      for (const annotation of annotations) {
+        const page = pages[annotation.page || 0];
+        if (!page) continue;
+        const { height } = page.getSize();
+        const annotationColor = toRgbColor(annotation.color, rgb(1, 1, 0));
+        const borderColor = annotation.borderColor ? toRgbColor(annotation.borderColor, rgb(0, 0, 0)) : undefined;
+        const opacity = Number(annotation.opacity || 0.3);
 
-      const opacity = annotation.opacity || 0.3;
-
-      if (annotation.type === 'rectangle' || annotation.type === 'highlight') {
-        // Validate rectangle has required dimensions
-        if (typeof annotation.x === 'number' && typeof annotation.y === 'number' &&
-          typeof annotation.width === 'number' && typeof annotation.height === 'number') {
+        if (annotation.type === 'rectangle' || annotation.type === 'highlight') {
           page.drawRectangle({
-            x: annotation.x,
-            y: height - annotation.y - (annotation.height || 0), // Adjust for height (draws from bottom-left)
-            width: annotation.width,
-            height: annotation.height,
+            x: Number(annotation.x || 0),
+            y: height - Number(annotation.y || 0) - Number(annotation.height || 0),
+            width: Number(annotation.width || 0),
+            height: Number(annotation.height || 0),
             color: annotationColor,
-            opacity: opacity,
-            borderColor: borderColor,
-            borderWidth: annotation.borderWidth || 1
+            opacity,
+            borderColor,
+            borderWidth: Number(annotation.borderWidth || 1)
           });
-        } else {
-          console.warn('Skipping rectangle annotation with invalid dimensions:', annotation);
         }
-      } else if (annotation.type === 'circle') {
-        // Draw circle using ellipse
-        if (typeof annotation.x === 'number' && typeof annotation.y === 'number' &&
-          typeof annotation.width === 'number' && typeof annotation.height === 'number') {
-          const centerX = annotation.x + annotation.width / 2;
-          const centerY = height - annotation.y - annotation.height / 2;
+
+        if (annotation.type === 'circle') {
           page.drawEllipse({
-            x: centerX,
-            y: centerY,
-            xScale: annotation.width / 2,
-            yScale: annotation.height / 2,
+            x: Number(annotation.x || 0) + Number(annotation.width || 0) / 2,
+            y: height - Number(annotation.y || 0) - Number(annotation.height || 0) / 2,
+            xScale: Number(annotation.width || 0) / 2,
+            yScale: Number(annotation.height || 0) / 2,
             color: annotationColor,
-            opacity: opacity,
-            borderColor: borderColor,
-            borderWidth: annotation.borderWidth || 1
+            opacity,
+            borderColor,
+            borderWidth: Number(annotation.borderWidth || 1)
           });
-        } else {
-          console.warn('Skipping circle annotation with invalid dimensions:', annotation);
         }
-      } else if (annotation.type === 'line') {
-        // Validate line has required coordinates
-        if (typeof annotation.x === 'number' && typeof annotation.y === 'number' &&
-          typeof annotation.x2 === 'number' && typeof annotation.y2 === 'number') {
+
+        if (annotation.type === 'line') {
           page.drawLine({
-            start: { x: annotation.x, y: height - annotation.y },
-            end: { x: annotation.x2, y: height - annotation.y2 },
-            thickness: annotation.thickness || 2,
+            start: { x: Number(annotation.x || 0), y: height - Number(annotation.y || 0) },
+            end: { x: Number(annotation.x2 || 0), y: height - Number(annotation.y2 || 0) },
+            thickness: Number(annotation.thickness || 2),
             color: annotationColor
           });
-        } else {
-          console.warn('Skipping line annotation with invalid coordinates:', annotation);
         }
       }
-    }
 
-    // Add watermark to all pages
-    if (watermark && watermark.text) {
-      const font = await pdfDoc.embedFont('Helvetica');
+      if (watermark && watermark.text) {
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const watermarkColor = toRgbColor(watermark.color, rgb(0.5, 0.5, 0.5));
+        const rotationAngle = typeof watermark.rotation === 'object'
+          ? (watermark.rotation.angle || 45)
+          : (watermark.rotation || 45);
 
-      // Parse watermark color
-      let watermarkColor;
-      if (watermark.color && typeof watermark.color === 'object') {
-        const { r = 0.5, g = 0.5, b = 0.5 } = watermark.color;
-        watermarkColor = rgb(r, g, b);
-      } else {
-        watermarkColor = rgb(0.5, 0.5, 0.5); // Default gray
+        pages.forEach(page => {
+          const { width, height } = page.getSize();
+          page.drawText(watermark.text, {
+            x: width / 2 - (watermark.text.length * 10),
+            y: height / 2,
+            size: watermark.size || 50,
+            color: watermarkColor,
+            opacity: watermark.opacity || 0.3,
+            rotate: degrees(rotationAngle),
+            font
+          });
+        });
       }
 
-      // Extract rotation angle from object or use directly
-      const rotationAngle = typeof watermark.rotation === 'object'
-        ? (watermark.rotation.angle || 45)
-        : (watermark.rotation || 45);
+      if (rotate) {
+        const page = pages[rotate.page];
+        if (page) {
+          const currentRotation = page.getRotation().angle;
+          page.setRotation({ angle: currentRotation + (rotate.degrees || 90) });
+        }
+      }
 
-      pages.forEach(page => {
-        const { width, height } = page.getSize();
-        page.drawText(watermark.text, {
-          x: width / 2 - (watermark.text.length * 10),
-          y: height / 2,
-          size: watermark.size || 50,
-          color: watermarkColor,
-          opacity: watermark.opacity || 0.3,
-          rotate: degrees(rotationAngle)
-        });
-      });
-    }
-
-    // Rotate pages if specified
-    if (rotate) {
-      const page = pages[rotate.page];
-      const currentRotation = page.getRotation().angle;
-      page.setRotation({ angle: currentRotation + (rotate.degrees || 90) });
+      editedPdfBytes = await pdfDoc.save();
     }
 
     // Save the edited PDF
-    const editedPdfBytes = await pdfDoc.save();
     const outputFileName = req.file.filename.replace(path.extname(req.file.filename), "") + "-edited.pdf";
     const outputPath = path.join(__dirname, '../uploads', outputFileName);
 
@@ -1271,15 +1743,16 @@ exports.editPdf = async (req, res) => {
     const conversionTime = Date.now() - startTime;
 
     res.json({
-      message: 'PDF edited successfully',
+      message: canvasData?.pages?.length ? 'Canvas PDF edited successfully' : 'PDF edited successfully',
       downloadUrl: `/api/convert/download/${outputFileName}`,
       fileName: outputFileName,
       fileSize: editedPdfBytes.length,
       conversionTime,
       editsApplied: {
-        texts: texts.length,
-        images: images.length,
-        annotations: annotations.length,
+        pages: canvasData?.pages?.length || 0,
+        texts: canvasData?.pages?.reduce((count, page) => count + (page?.objects || []).filter(isPdfTextObject).length, 0) || texts.length,
+        images: canvasData?.pages?.reduce((count, page) => count + (page?.objects || []).filter(item => item?.type === 'image').length, 0) || images.length,
+        annotations: canvasData?.pages?.reduce((count, page) => count + (page?.objects || []).filter(item => ['rect', 'circle', 'line', 'path'].includes(item?.type)).length, 0) || annotations.length,
         watermark: watermark ? true : false,
         rotated: rotate ? true : false
       }
@@ -1664,5 +2137,101 @@ exports.downloadCloudFile = async (req, res) => {
     }
   }
 };
+
+
+
+// Render PDF pages as images (for client-side display fallback)
+exports.renderPages = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'File is required' });
+    }
+
+    const uploadStats = await fs.stat(req.file.path);
+    if (!uploadStats.size) {
+      return res.status(400).json({ message: 'Uploaded PDF is empty' });
+    }
+
+    const pagesParam = req.body.pages || req.query.pages || '1';
+    const pagesArray = pagesParam.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p) && p > 0);
+    
+    if (pagesArray.length === 0) {
+      return res.status(400).json({ message: 'Invalid pages parameter' });
+    }
+
+    console.log(`[renderPages] Rendering pages: ${pagesArray} from ${req.file.originalname}`);
+
+    const pdfPath = req.file.path;
+    const uploadDir = path.dirname(pdfPath);
+    const baseFilename = `rendered-${Date.now()}`;
+    const ppmPath = path.join(uploadDir, `${baseFilename}.ppm`);
+    
+    // Use pdftoppm to render PDF pages as PPM files
+    // pdftoppm outputs one file per page with format: filename-page.ppm
+    const pageRanges = pagesArray.join(',');
+    const pdftoppmExec = getPdftoppmExecForShell();
+    const renderCmd = `${pdftoppmExec} -png -f ${Math.min(...pagesArray)} -l ${Math.max(...pagesArray)} -r 150 "${pdfPath}" "${path.join(uploadDir, baseFilename)}"`;
+    
+    console.log(`[renderPages] Running: ${renderCmd}`);
+    
+    try {
+      await execAsync(renderCmd);
+    } catch (cmdError) {
+      console.error('[renderPages] pdftoppm failed:', cmdError);
+      return res.status(500).json({ message: 'Failed to render PDF pages' });
+    }
+
+    // Read the rendered PNG files and convert to data URLs
+    const pages = [];
+    for (const pageNum of pagesArray) {
+      const pngFile = `${path.join(uploadDir, baseFilename)}-${pageNum}.png`;
+      
+      try {
+        if (!fsSync.existsSync(pngFile)) {
+          console.warn(`[renderPages] PNG file not found: ${pngFile}`);
+          continue;
+        }
+
+        const imageData = await fs.readFile(pngFile);
+        const dataUrl = `data:image/png;base64,${imageData.toString('base64')}`;
+        pages.push({
+          page: pageNum,
+          dataUrl,
+          size: imageData.length
+        });
+        
+        // Cleanup temp file
+        try {
+          await fs.unlink(pngFile);
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      } catch (err) {
+        console.error(`[renderPages] Error processing page ${pageNum}:`, err);
+      }
+    }
+
+    if (pages.length === 0) {
+      return res.status(500).json({ message: 'No pages were successfully rendered' });
+    }
+
+    console.log(`[renderPages] Successfully rendered ${pages.length} page(s)`);
+    res.json({ pages, success: true });
+
+  } catch (error) {
+    console.error('[renderPages] Error:', error);
+    res.status(500).json({ message: 'Server-side rendering failed', error: error.message });
+  } finally {
+    // Cleanup temp files
+    if (req.file?.path) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
+  }
+};
+
 
 

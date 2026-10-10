@@ -4,8 +4,11 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { FiType, FiImage, FiSquare, FiCircle, FiMinus, FiDroplet, FiTrash2, FiEdit2 } from 'react-icons/fi';
 
-// Set up PDF.js worker from public folder
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+// Use the bundled local worker so the app does not depend on CDN fetches.
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
 
 const PdfEditorAdvanced = ({ file, onSave, onCancel }) => {
   const [fileUrl, setFileUrl] = useState(null);

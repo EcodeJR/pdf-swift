@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import PdfEditorAdvanced from '../../components/PdfEditorAdvanced';
+import PdfEditorCanvas from '../../components/PdfEditorCanvas';
 import VideoAdModal from '../../components/VideoAdModal';
 import api from '../../services/api';
 import { logEvent } from '../../services/analytics';
@@ -38,28 +38,12 @@ const EditPdf = () => {
     setShowEditor(true);
   };
 
-  const handleSaveEdits = async (edits) => {
+  const handleSaveEdits = async (editorData) => {
     setLoading(true);
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-
-      // Add edits to form data
-      if (edits.texts && edits.texts.length > 0) {
-        formData.append('texts', JSON.stringify(edits.texts));
-      }
-      if (edits.images && edits.images.length > 0) {
-        formData.append('images', JSON.stringify(edits.images));
-      }
-      if (edits.annotations && edits.annotations.length > 0) {
-        formData.append('annotations', JSON.stringify(edits.annotations));
-      }
-      if (edits.watermark) {
-        formData.append('watermark', JSON.stringify(edits.watermark));
-      }
-      if (edits.rotate) {
-        formData.append('rotate', JSON.stringify(edits.rotate));
-      }
+      formData.append('canvasData', JSON.stringify(editorData));
 
       const response = await api.post('/convert/edit-pdf', formData, {
         headers: {
@@ -90,19 +74,28 @@ const EditPdf = () => {
   const handleDownload = async () => {
     if (result?.downloadUrl) {
       try {
-        // Construct absolute URL
-        let downloadUrl = result.downloadUrl;
-        if (!downloadUrl.startsWith('http')) {
-          const baseUrl = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
-          if (!downloadUrl.startsWith('/')) downloadUrl = `/${downloadUrl}`;
-          downloadUrl = `${baseUrl}${downloadUrl}`;
+        const requestUrl = result.downloadUrl.startsWith('http')
+          ? result.downloadUrl
+          : result.downloadUrl.replace(/^\/api(?=\/)/, '');
+
+        const response = await api.get(requestUrl, {
+          responseType: 'arraybuffer',
+          headers: {
+            Accept: 'application/pdf'
+          }
+        });
+
+        const contentType = String(response?.headers?.['content-type'] || '').toLowerCase();
+        const bytes = new Uint8Array(response.data || []);
+        const pdfSignature = bytes.length >= 5
+          ? String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3], bytes[4])
+          : '';
+
+        if (!contentType.includes('application/pdf') && pdfSignature !== '%PDF-') {
+          throw new Error('Server response is not a valid PDF');
         }
 
-        // Fetch as blob to bypass router completely
-        const response = await fetch(downloadUrl);
-        if (!response.ok) throw new Error('Download failed');
-
-        const blob = await response.blob();
+        const blob = new Blob([response.data], { type: 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -113,7 +106,7 @@ const EditPdf = () => {
         window.URL.revokeObjectURL(url);
       } catch (error) {
         console.error('Download error:', error);
-        toast.error('Failed to download file. Please try again.');
+        toast.error(error?.message || 'Failed to download file. Please try again.');
       }
     }
   };
@@ -314,28 +307,28 @@ const EditPdf = () => {
         title="Edit PDF Online - Add Text and Shapes"
         content={{
           introduction: [
-            "Need to fill out a form or add notes to a PDF? Our online PDF Editor allows you to add text, shapes, and highlights directly to your document without expensive software.",
-            "Whether you need to fill in a job application, highlight key points in a study guide, or blackout sensitive information, our intuitive editor makes it simple and fast."
+            "Need to edit a PDF like a real document instead of placing annotations on top? Our canvas-based PDF editor extracts page content into editable objects so you can modify text directly in the browser.",
+            "Whether you need to correct a typo, move text, add content, or adjust layout, the editor keeps the workflow fast and browser-friendly."
           ],
           benefits: [
-            "Add text, checkmarks, and shapes",
-            "Highlight and annotate text",
-            "Draw freehand signatures",
-            "No account required for quick edits",
-            "Works in your browser",
-            "Cloud-based secure processing"
+            "Edit extracted PDF text on a canvas",
+            "Add new text, images, and shapes",
+            "Move, resize, and delete objects",
+            "Undo and redo canvas changes",
+            "Works directly in your browser",
+            "Secure PDF reconstruction on download"
           ],
           howToSteps: [
             "Upload your PDF document.",
-            "Choose the tool (Text, Pen, Shape) from the toolbar.",
-            "Click on the page to add your annotation.",
-            "Customize color, size, and position.",
-            "Click 'Save & Download' to get your edited PDF."
+            "Edit the extracted text or add new content on the canvas.",
+            "Move, resize, or delete items as needed.",
+            "Adjust font and object styling in the side panel.",
+            "Click 'Save & Download' to rebuild the PDF."
           ],
           faqs: [
             {
               question: "Can I edit existing text?",
-              answer: "Currently, our tool is an 'annotator', meaning adding new content (text, shapes, signatures) on top of the PDF. To edit existing underlying text, we recommend converting PDF to Word first."
+              answer: "Yes. Existing page text is extracted into editable canvas objects so you can change the content, position, size, and styling before the PDF is rebuilt."
             },
             {
               question: "Is it free to use?",
@@ -352,7 +345,7 @@ const EditPdf = () => {
       {/* PDF Editor Modal */}
       {
         showEditor && selectedFile && (
-          <PdfEditorAdvanced
+          <PdfEditorCanvas
             file={selectedFile}
             onSave={handleSaveEdits}
             onCancel={() => setShowEditor(false)}

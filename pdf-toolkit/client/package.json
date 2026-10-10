@@ -5,6 +5,7 @@
   "dependencies": {
     "axios": "^1.7.7",
     "clsx": "^2.1.1",
+    "fabric": "^6.6.7",
     "framer-motion": "^12.23.25",
     "pdfjs-dist": "^5.4.394",
     "react": "^18.3.1",

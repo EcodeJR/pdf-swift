@@ -19,7 +19,8 @@ const {
   watermarkPdf,
   unlockPdf,
   downloadFile,
-  downloadCloudFile
+  downloadCloudFile,
+  renderPages
 } = require('../controllers/conversionController');
 
 // Apply optional auth to all conversion routes
@@ -63,5 +64,6 @@ router.post('/watermark-pdf', conversionRateLimiter, localUpload.fields([
   { name: 'watermarkImage', maxCount: 1 }
 ]), watermarkPdf);
 router.post('/unlock-pdf', conversionRateLimiter, localUpload.single('file'), unlockPdf);
+router.post('/render-pages', conversionRateLimiter, localUpload.single('file'), renderPages);
 
 module.exports = router;
